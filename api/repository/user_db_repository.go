@@ -1,8 +1,8 @@
 package repository
 
 import (
+	"../models"
 	"database/sql"
-	"github.com/CoolCodeTeam/2019_2_CoolCodeMicroServices/utils/models"
 	"net/http"
 )
 

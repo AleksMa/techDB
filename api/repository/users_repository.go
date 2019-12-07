@@ -1,8 +1,6 @@
 package repository
 
-import "github.com/CoolCodeTeam/2019_2_CoolCodeMicroServices/utils/models"
-
-//go:generate moq -out user_repo_mock.go . UserRepo
+import "../models"
 
 type UserRepo interface {
 	GetUserByEmail(email string) (models.User, error)
