@@ -19,6 +19,14 @@ type UseCase interface {
 	RemoveAllData() error
 	PutPost(post *models.Post, threadID int64) (models.Post, error)
 	PutPostWithSlug(post *models.Post, threadSlug string) (models.Post, error)
+	GetThreadByID(id int64) (models.Thread, error)
+	GetThreadBySlug(slug string) (models.Thread, error)
+	UpdateThreadWithID(thread *models.Thread) (models.Thread, error)
+	UpdateThreadWithSlug(thread *models.Thread) (models.Thread, error)
+	GetPostsByThreadID(id int64) (models.Posts, error)
+	GetPostsByThreadSlug(slug string) (models.Posts, error)
+	PutVote(vote *models.Vote) (models.Vote, error)
+	PutVoteWithSlug(vote *models.Vote, slug string) (models.Vote, error)
 }
 
 type useCase struct {
@@ -160,4 +168,71 @@ func (u *useCase) PutPostWithSlug(post *models.Post, threadSlug string) (models.
 	u.repository.PutPost(post)
 	//TODO: error check
 	return *post, nil
+}
+
+func (u *useCase) UpdateThreadWithID(thread *models.Thread) (models.Thread, error) {
+	fmt.Println(thread)
+	//TODO: contains check
+	u.repository.UpdateThreadWithID(thread)
+	//TODO: error check
+	return *thread, nil
+}
+
+func (u *useCase) UpdateThreadWithSlug(thread *models.Thread) (models.Thread, error) {
+	fmt.Println(thread)
+	//TODO: contains check
+	u.repository.UpdateThreadWithSlug(thread)
+	//TODO: error check
+	return *thread, nil
+}
+
+func (u *useCase) GetPostsByThreadID(id int64) (models.Posts, error) {
+	thread, _, _ := u.repository.GetThreadByID(id)
+
+	posts, _ := u.repository.GetPostsByThreadID(thread.ID)
+	for i, _ := range posts {
+		posts[i].Thread = thread.ID
+		user, _ := u.repository.GetUserByID(posts[i].AuthorID)
+		posts[i].Author = user.Nickname
+	}
+	return posts, nil
+}
+
+func (u *useCase) GetPostsByThreadSlug(slug string) (models.Posts, error) {
+	thread, _, _ := u.repository.GetThreadBySlug(slug)
+
+	posts, _ := u.repository.GetPostsByThreadID(thread.ID)
+	for i, _ := range posts {
+		posts[i].Thread = thread.ID
+		user, _ := u.repository.GetUserByID(posts[i].AuthorID)
+		posts[i].Author = user.Nickname
+	}
+	return posts, nil
+}
+
+func (u *useCase) PutVote(vote *models.Vote) (models.Vote, error) {
+	fmt.Println(vote)
+	//TODO: contains check
+	user, _ := u.repository.GetUserByNickname(vote.Nickname)
+	vote.AuthorID = user.ID
+
+	fmt.Println(vote)
+
+	u.repository.PutVote(vote)
+	//TODO: error check
+	return *vote, nil
+}
+
+func (u *useCase) PutVoteWithSlug(vote *models.Vote, slug string) (models.Vote, error) {
+	fmt.Println(vote)
+	//TODO: contains check
+	user, _ := u.repository.GetUserByNickname(vote.Nickname)
+	vote.AuthorID = user.ID
+	thread, _, _ := u.repository.GetThreadBySlug(slug)
+	vote.ThreadID = thread.ID
+	fmt.Println(vote)
+
+	u.repository.PutVote(vote)
+	//TODO: error check
+	return *vote, nil
 }

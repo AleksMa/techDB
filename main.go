@@ -29,11 +29,17 @@ func main() {
 	r := mux.NewRouter()
 	r.HandleFunc("/forum/create", api.PostForum).Methods("POST")
 
+	//TODO: PUT/UPDATE POST, GET USERS
+
 	r.HandleFunc("/forum/{slug}/create", api.PostThread).Methods("POST")
 	r.HandleFunc("/forum/{slug}/details", api.GetForum).Methods("GET")
 	r.HandleFunc("/forum/{slug}/threads", api.GetThreads).Methods("GET")
 
 	r.HandleFunc("/thread/{slug_or_id}/create", api.PutPost).Methods("POST")
+	r.HandleFunc("/thread/{slug_or_id}/details", api.GetThread).Methods("GET")
+	r.HandleFunc("/thread/{slug_or_id}/details", api.ChangeThread).Methods("POST")
+	r.HandleFunc("/thread/{slug_or_id}/posts", api.GetPosts).Methods("GET")
+	r.HandleFunc("/thread/{slug_or_id}/vote", api.Vote).Methods("POST")
 
 	r.HandleFunc("/user/{nickname}/create", api.PostUser).Methods("POST")
 	r.HandleFunc("/user/{nickname}/profile", api.GetUser).Methods("GET")

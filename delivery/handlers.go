@@ -58,28 +58,6 @@ func (handlers *Handlers) PostThread(w http.ResponseWriter, r *http.Request) {
 	handlers.usecases.PutThread(&newThread)
 }
 
-func (handlers *Handlers) PutPost(w http.ResponseWriter, r *http.Request) {
-	var post models.Post
-
-	defer r.Body.Close()
-	body, _ := ioutil.ReadAll(r.Body)
-
-	fmt.Println(string(body))
-	vars := mux.Vars(r)
-	slug_or_id := vars["slug_or_id"]
-
-	err := json.Unmarshal(body, &post)
-	if err != nil {
-
-	}
-
-	if id, err := strconv.Atoi(slug_or_id); err == nil {
-		handlers.usecases.PutPost(&post, int64(id))
-	} else {
-		handlers.usecases.PutPostWithSlug(&post, slug_or_id)
-	}
-}
-
 func (handlers *Handlers) PostUser(w http.ResponseWriter, r *http.Request) {
 	var user models.User
 
@@ -171,4 +149,118 @@ func (handlers *Handlers) GetStatus(w http.ResponseWriter, r *http.Request) {
 
 func (handlers *Handlers) Clear(w http.ResponseWriter, r *http.Request) {
 	handlers.usecases.RemoveAllData()
+}
+
+func (handlers *Handlers) PutPost(w http.ResponseWriter, r *http.Request) {
+	var post models.Post
+
+	defer r.Body.Close()
+	body, _ := ioutil.ReadAll(r.Body)
+
+	fmt.Println(string(body))
+	vars := mux.Vars(r)
+	slug_or_id := vars["slug_or_id"]
+
+	err := json.Unmarshal(body, &post)
+	if err != nil {
+
+	}
+
+	if id, err := strconv.Atoi(slug_or_id); err == nil {
+		handlers.usecases.PutPost(&post, int64(id))
+	} else {
+		handlers.usecases.PutPostWithSlug(&post, slug_or_id)
+	}
+}
+
+func (handlers *Handlers) ChangeThread(w http.ResponseWriter, r *http.Request) {
+	var thread models.Thread
+
+	defer r.Body.Close()
+	body, _ := ioutil.ReadAll(r.Body)
+
+	fmt.Println(string(body))
+	vars := mux.Vars(r)
+	slug_or_id := vars["slug_or_id"]
+
+	err := json.Unmarshal(body, &thread)
+	if err != nil {
+
+	}
+
+	if id, err := strconv.Atoi(slug_or_id); err == nil {
+		thread.ID = int64(id)
+		thread, _ = handlers.usecases.UpdateThreadWithID(&thread)
+	} else {
+		thread.Slug = slug_or_id
+		thread, _ = handlers.usecases.UpdateThreadWithSlug(&thread)
+	}
+
+	fmt.Println(thread)
+
+	body, _ = json.Marshal(thread)
+
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(body)
+}
+
+func (handlers *Handlers) GetThread(w http.ResponseWriter, r *http.Request) {
+	var thread models.Thread
+	vars := mux.Vars(r)
+	slug_or_id := vars["slug_or_id"]
+
+	if id, err := strconv.Atoi(slug_or_id); err == nil {
+		thread, _ = handlers.usecases.GetThreadByID(int64(id))
+	} else {
+		thread, _ = handlers.usecases.GetThreadBySlug(slug_or_id)
+	}
+
+	fmt.Println(thread)
+
+	body, _ := json.Marshal(thread)
+
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(body)
+}
+
+func (handlers *Handlers) GetPosts(w http.ResponseWriter, r *http.Request) {
+	var posts models.Posts
+	vars := mux.Vars(r)
+	slug_or_id := vars["slug_or_id"]
+
+	if id, err := strconv.Atoi(slug_or_id); err == nil {
+		posts, _ = handlers.usecases.GetPostsByThreadID(int64(id))
+	} else {
+		posts, _ = handlers.usecases.GetPostsByThreadSlug(slug_or_id)
+	}
+
+	fmt.Println(posts)
+
+	body, _ := json.Marshal(posts)
+
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(body)
+}
+
+func (handlers *Handlers) Vote(w http.ResponseWriter, r *http.Request) {
+	var vote models.Vote
+
+	defer r.Body.Close()
+	body, _ := ioutil.ReadAll(r.Body)
+
+	fmt.Println(string(body))
+	vars := mux.Vars(r)
+	slug_or_id := vars["slug_or_id"]
+
+	err := json.Unmarshal(body, &vote)
+	if err != nil {
+
+	}
+
+	if id, err := strconv.Atoi(slug_or_id); err == nil {
+		vote.ThreadID = int64(id)
+		handlers.usecases.PutVote(&vote)
+	} else {
+		handlers.usecases.PutVoteWithSlug(&vote, slug_or_id)
+	}
 }

@@ -20,4 +20,6 @@ type Threads []*Thread
 type Vote struct {
 	Nickname string `json:"nickname"`
 	Voice    int    `json:"voice"`
+	ThreadID int64  `json:"-"`
+	AuthorID int64  `json:"-"`
 }
