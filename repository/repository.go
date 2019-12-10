@@ -9,5 +9,12 @@ type Repo interface {
 	GetUserByNickname(nickname string) (models.User, error)
 	GetUserByID(id int64) (models.User, error)
 	GetForumBySlug(slug string) (models.Forum, int64, error)
+	GetForumByID(id int64) (models.Forum, int64, error)
 	GetThreadsByForum(forumID int64) (models.Threads, error)
+	ChangeUser(user *models.User) error
+	GetStatus() (models.Status, error)
+	ReloadDB() error
+	GetThreadBySlug(slug string) (models.Thread, int64, error)
+	GetThreadByID(id int64) (models.Thread, int64, error)
+	PutPost(post *models.Post) (uint64, error)
 }

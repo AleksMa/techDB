@@ -28,11 +28,20 @@ func main() {
 
 	r := mux.NewRouter()
 	r.HandleFunc("/forum/create", api.PostForum).Methods("POST")
+
 	r.HandleFunc("/forum/{slug}/create", api.PostThread).Methods("POST")
 	r.HandleFunc("/forum/{slug}/details", api.GetForum).Methods("GET")
 	r.HandleFunc("/forum/{slug}/threads", api.GetThreads).Methods("GET")
+
+	r.HandleFunc("/thread/{slug_or_id}/create", api.PutPost).Methods("POST")
+
 	r.HandleFunc("/user/{nickname}/create", api.PostUser).Methods("POST")
 	r.HandleFunc("/user/{nickname}/profile", api.GetUser).Methods("GET")
+	r.HandleFunc("/user/{nickname}/profile", api.ChangeUser).Methods("POST")
+
+	r.HandleFunc("/service/status", api.GetStatus).Methods("GET")
+	r.HandleFunc("/service/clear", api.Clear).Methods("POST")
+
 	log.Println("http server started on 5000 port: ")
 	err = http.ListenAndServe(":5000", r)
 	if err != nil {

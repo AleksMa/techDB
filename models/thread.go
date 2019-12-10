@@ -12,6 +12,7 @@ type Thread struct {
 	Title    string     `json:"title"`
 	Votes    int32      `json:"votes"`
 	AuthorID int64      `json:"-"`
+	ForumID  int64      `json:"-"`
 }
 
 type Threads []*Thread
