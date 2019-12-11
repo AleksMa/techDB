@@ -8,13 +8,14 @@ import (
 )
 
 type UseCase interface {
+	PutUser(user *models.User) (models.Users, *models.Error)
+	GetUserByNickname(nickname string) (models.User, *models.Error)
+	ChangeUser(user *models.User) (models.User, *models.Error)
+
 	PutForum(newForum *models.Forum) error
 	PutThread(newThread *models.Thread) error
-	PutUser(user *models.User) error
-	GetUserByNickname(nickname string) (models.User, error)
 	GetForumBySlug(slug string) (models.Forum, error)
 	GetThreadsByForum(slug string) (models.Threads, error)
-	ChangeUser(user *models.User) error
 	GetStatus() (models.Status, error)
 	RemoveAllData() error
 	PutPost(post *models.Post, threadID int64) (models.Post, error)
@@ -42,6 +43,53 @@ func NewUseCase(repo repository.Repo) UseCase {
 	}
 }
 
+func (u *useCase) PutUser(user *models.User) (models.Users, *models.Error) {
+	fmt.Println(user)
+
+	if err := user.Validate(); err != nil {
+		return nil, err
+	}
+
+	users, _ := u.repository.GetDupUsers(user)
+	if users != nil && len(users) != 0 {
+		fmt.Println("DUP: ", users)
+		return users, nil
+	}
+
+	_, err := u.repository.PutUser(user)
+	return nil, err
+}
+
+func (u *useCase) GetUserByNickname(nickname string) (models.User, *models.Error) {
+	return u.repository.GetUserByNickname(nickname)
+}
+
+func (u *useCase) ChangeUser(user *models.User) (models.User, *models.Error) {
+	tempUser, err := u.repository.GetUserByNickname(user.Nickname)
+	if err != nil {
+		return *user, err
+	}
+	err = u.repository.ChangeUser(user)
+	fmt.Println(*user)
+	fmt.Println(tempUser)
+	return *user, err
+}
+
+func (u *useCase) GetUsersByForum(slug string) (models.Users, error) {
+	forum, _, _ := u.repository.GetForumBySlug(slug)
+
+	users, _ := u.repository.GetUsersByForum(forum.ID)
+	fmt.Println(users)
+	for i, _ := range users {
+		user, _ := u.repository.GetUserByID(users[i].ID)
+		users[i].Nickname = user.Nickname
+		users[i].Fullname = user.Fullname
+		users[i].About = user.About
+		users[i].Email = user.Email
+	}
+	return users, nil
+}
+
 func (u *useCase) PutForum(newForum *models.Forum) error {
 	fmt.Println(newForum)
 	//TODO: contains check
@@ -49,6 +97,14 @@ func (u *useCase) PutForum(newForum *models.Forum) error {
 	u.repository.PutForum(newForum, user.ID)
 	//TODO: error check
 	return nil
+}
+
+func (u *useCase) GetForumBySlug(slug string) (models.Forum, error) {
+	forum, ownerID, _ := u.repository.GetForumBySlug(slug)
+	fmt.Println(forum, ownerID)
+	owner, _ := u.repository.GetUserByID(ownerID)
+	forum.Owner = owner.Nickname
+	return forum, nil
 }
 
 func (u *useCase) PutThread(newThread *models.Thread) error {
@@ -64,26 +120,6 @@ func (u *useCase) PutThread(newThread *models.Thread) error {
 	return nil
 }
 
-func (u *useCase) PutUser(user *models.User) error {
-	fmt.Println(user)
-	//TODO: contains check
-	u.repository.PutUser(user)
-	//TODO: error check
-	return nil
-}
-
-func (u *useCase) GetUserByNickname(nickname string) (models.User, error) {
-	return u.repository.GetUserByNickname(nickname)
-}
-
-func (u *useCase) GetForumBySlug(slug string) (models.Forum, error) {
-	forum, ownerID, _ := u.repository.GetForumBySlug(slug)
-	fmt.Println(forum, ownerID)
-	owner, _ := u.repository.GetUserByID(ownerID)
-	forum.Owner = owner.Nickname
-	return forum, nil
-}
-
 func (u *useCase) GetThreadsByForum(slug string) (models.Threads, error) {
 	forum, _, _ := u.repository.GetForumBySlug(slug)
 
@@ -94,22 +130,6 @@ func (u *useCase) GetThreadsByForum(slug string) (models.Threads, error) {
 		threads[i].Author = user.Nickname
 	}
 	return threads, nil
-}
-
-func (u *useCase) ChangeUser(user *models.User) error {
-	fmt.Println(user)
-	//TODO: contains check
-	u.repository.ChangeUser(user)
-	//TODO: error check
-	return nil
-}
-
-func (u *useCase) GetStatus() (models.Status, error) {
-	return u.repository.GetStatus()
-}
-
-func (u *useCase) RemoveAllData() error {
-	return u.repository.ReloadDB()
 }
 
 func (u *useCase) GetThreadBySlug(slug string) (models.Thread, error) {
@@ -226,35 +246,6 @@ func (u *useCase) PutVote(vote *models.Vote) (models.Vote, error) {
 	return *vote, nil
 }
 
-func (u *useCase) PutVoteWithSlug(vote *models.Vote, slug string) (models.Vote, error) {
-	fmt.Println(vote)
-	//TODO: contains check
-	user, _ := u.repository.GetUserByNickname(vote.Nickname)
-	vote.AuthorID = user.ID
-	thread, _, _ := u.repository.GetThreadBySlug(slug)
-	vote.ThreadID = thread.ID
-	fmt.Println(vote)
-
-	u.repository.PutVote(vote)
-	//TODO: error check
-	return *vote, nil
-}
-
-func (u *useCase) GetUsersByForum(slug string) (models.Users, error) {
-	forum, _, _ := u.repository.GetForumBySlug(slug)
-
-	users, _ := u.repository.GetUsersByForum(forum.ID)
-	fmt.Println(users)
-	for i, _ := range users {
-		user, _ := u.repository.GetUserByID(users[i].ID)
-		users[i].Nickname = user.Nickname
-		users[i].Fullname = user.Fullname
-		users[i].About = user.About
-		users[i].Email = user.Email
-	}
-	return users, nil
-}
-
 func (u *useCase) ChangePost(post *models.Post) error {
 	fmt.Println(post)
 	//TODO: contains check
@@ -270,9 +261,31 @@ func (u *useCase) GetPostFull(id int64) (models.PostFull, error) {
 	fmt.Println(postFull)
 	fmt.Println(err)
 
-	postFull.Author, err = u.repository.GetUserByID(postFull.Post.AuthorID)
-	postFull.Thread, _, err = u.repository.GetThreadByID(postFull.Post.Thread)
-	postFull.Forum, _, err = u.repository.GetForumByID(postFull.Post.ForumID)
+	postFull.Author, _ = u.repository.GetUserByID(postFull.Post.AuthorID)
+	postFull.Thread, _, _ = u.repository.GetThreadByID(postFull.Post.Thread)
+	postFull.Forum, _, _ = u.repository.GetForumByID(postFull.Post.ForumID)
 
 	return postFull, nil
+}
+
+func (u *useCase) PutVoteWithSlug(vote *models.Vote, slug string) (models.Vote, error) {
+	fmt.Println(vote)
+	//TODO: contains check
+	user, _ := u.repository.GetUserByNickname(vote.Nickname)
+	vote.AuthorID = user.ID
+	thread, _, _ := u.repository.GetThreadBySlug(slug)
+	vote.ThreadID = thread.ID
+	fmt.Println(vote)
+
+	u.repository.PutVote(vote)
+	//TODO: error check
+	return *vote, nil
+}
+
+func (u *useCase) GetStatus() (models.Status, error) {
+	return u.repository.GetStatus()
+}
+
+func (u *useCase) RemoveAllData() error {
+	return u.repository.ReloadDB()
 }

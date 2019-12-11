@@ -1,13 +1,13 @@
 package main
 
 import (
-	"database/sql"
+	//"database/sql"
 	"fmt"
 	"github.com/AleksMa/techDB/delivery"
-	"github.com/AleksMa/techDB/models"
 	"github.com/AleksMa/techDB/repository"
 	useCase "github.com/AleksMa/techDB/usecase"
 	"github.com/gorilla/mux"
+	"github.com/jackc/pgx"
 	_ "github.com/lib/pq"
 	"log"
 	"net/http"
@@ -20,14 +20,24 @@ func main() {
 
 	//layout := "2006-01-02 00:00:00 +0000 UTC"
 
-	dbinfo := fmt.Sprintf("host=%s user=%s password=%s dbname=%s sslmode=disable",
-		"localhost", "docker", "docker", "docker")
+	//dbinfo := fmt.Sprintf("host=%s user=%s password=%s dbname=%s sslmode=disable", "localhost", "docker", "docker", "docker")
 
-	db, err := sql.Open("postgres", dbinfo)
+	db, err := pgx.NewConnPool(pgx.ConnPoolConfig{
+		ConnConfig: pgx.ConnConfig{
+			Host:     "localhost",
+			User:     "docker",
+			Password: "docker",
+			Port:     5432,
+			Database: "docker",
+		},
+		MaxConnections: 50,
+	})
+
+	// db, err := sql.Open("postgres", dbinfo)
 	usecases := useCase.NewUseCase(repository.NewDBStore(db))
 	api := delivery.NewHandlers(usecases)
 
-	_, err = db.Exec(models.InitScript)
+	//_, err = db.Exec(models.InitScript)
 
 	if err != nil {
 		fmt.Println(err)
@@ -49,9 +59,9 @@ func main() {
 	r.HandleFunc("/thread/{slug_or_id}/posts", api.GetPosts).Methods("GET")
 	r.HandleFunc("/thread/{slug_or_id}/vote", api.Vote).Methods("POST")
 
-	r.HandleFunc("/user/{nickname}/create", api.PostUser).Methods("POST")
+	r.HandleFunc("/user/{nickname}/create", api.CreateUser).Methods("POST")
 	r.HandleFunc("/user/{nickname}/profile", api.GetUser).Methods("GET")
-	r.HandleFunc("/user/{nickname}/profile", api.ChangeUser).Methods("POST")
+	r.HandleFunc("/user/{nickname}/profile", api.UpdateUser).Methods("POST")
 
 	r.HandleFunc("/post/{id}/details", api.GetPostFull).Methods("GET")
 	r.HandleFunc("/post/{id}/details", api.ChangePost).Methods("POST")

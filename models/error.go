@@ -11,3 +11,7 @@ func NewError(code int, msg string) *Error {
 		Message: msg,
 	}
 }
+
+func (err Error) Error() string {
+	return err.Message
+}

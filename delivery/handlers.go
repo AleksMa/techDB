@@ -13,14 +13,115 @@ import (
 
 type Handlers struct {
 	usecases useCase2.UseCase
-	//utils    utils.HandlersUtils
 }
 
 func NewHandlers(ucases useCase2.UseCase) *Handlers {
 	return &Handlers{
 		usecases: ucases,
-		//utils:    utils,
 	}
+}
+
+func WriteResponse(w http.ResponseWriter, body []byte, code int) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(code)
+	w.Write(body)
+}
+
+// ======================================= USERS ==============================================
+
+func (handlers *Handlers) CreateUser(w http.ResponseWriter, r *http.Request) {
+	var user models.User
+
+	defer r.Body.Close()
+	body, _ := ioutil.ReadAll(r.Body)
+
+	fmt.Println(string(body))
+	vars := mux.Vars(r)
+	nickname := vars["nickname"]
+
+	err := json.Unmarshal(body, &user)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	user.Nickname = nickname
+
+	users, e := handlers.usecases.PutUser(&user)
+	if e != nil {
+		http.Error(w, e.Message, e.Code)
+		return
+	}
+	if users != nil {
+		body, _ = json.Marshal(users)
+		WriteResponse(w, body, http.StatusConflict)
+		return
+	}
+	body, err = json.Marshal(user)
+	//http.Error(w, err.Error(), http.StatusInternalServerError)
+
+	WriteResponse(w, body, http.StatusCreated)
+}
+
+func (handlers *Handlers) GetUser(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	nickname := vars["nickname"]
+
+	user, err := handlers.usecases.GetUserByNickname(nickname)
+
+	if err != nil {
+		body, _ := json.Marshal(err)
+		WriteResponse(w, body, err.Code)
+		return
+	}
+
+	body, _ := json.Marshal(user)
+
+	WriteResponse(w, body, http.StatusOK)
+}
+
+func (handlers *Handlers) UpdateUser(w http.ResponseWriter, r *http.Request) {
+	var user models.User
+	var e *models.Error
+
+	defer r.Body.Close()
+	body, _ := ioutil.ReadAll(r.Body)
+
+	fmt.Println(string(body))
+	vars := mux.Vars(r)
+	nickname := vars["nickname"]
+
+	err := json.Unmarshal(body, &user)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	user.Nickname = nickname
+
+	user, e = handlers.usecases.ChangeUser(&user)
+	if e != nil {
+		body, _ = json.Marshal(e)
+		WriteResponse(w, body, e.Code)
+		return
+	}
+
+	body, _ = json.Marshal(user)
+
+	WriteResponse(w, body, http.StatusOK)
+}
+
+func (handlers *Handlers) GetUsers(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	slug := vars["slug"]
+
+	users, _ := handlers.usecases.GetUsersByForum(slug)
+
+	fmt.Println(users)
+
+	body, _ := json.Marshal(users)
+
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(body)
 }
 
 func (handlers *Handlers) PostForum(w http.ResponseWriter, r *http.Request) {
@@ -37,6 +138,20 @@ func (handlers *Handlers) PostForum(w http.ResponseWriter, r *http.Request) {
 	}
 
 	handlers.usecases.PutForum(&newForum)
+}
+
+func (handlers *Handlers) GetForum(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	slug := vars["slug"]
+
+	forum, _ := handlers.usecases.GetForumBySlug(slug)
+
+	fmt.Println(forum)
+
+	body, _ := json.Marshal(forum)
+
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(body)
 }
 
 func (handlers *Handlers) PostThread(w http.ResponseWriter, r *http.Request) {
@@ -58,53 +173,6 @@ func (handlers *Handlers) PostThread(w http.ResponseWriter, r *http.Request) {
 	handlers.usecases.PutThread(&newThread)
 }
 
-func (handlers *Handlers) PostUser(w http.ResponseWriter, r *http.Request) {
-	var user models.User
-
-	defer r.Body.Close()
-	body, _ := ioutil.ReadAll(r.Body)
-
-	fmt.Println(string(body))
-	vars := mux.Vars(r)
-	nickname := vars["nickname"]
-
-	err := json.Unmarshal(body, &user)
-	if err != nil {
-
-	}
-	user.Nickname = nickname
-
-	handlers.usecases.PutUser(&user)
-}
-
-func (handlers *Handlers) GetUser(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	nickname := vars["nickname"]
-
-	fmt.Println("/getuser", nickname)
-
-	user, _ := handlers.usecases.GetUserByNickname(nickname)
-
-	body, _ := json.Marshal(user)
-
-	w.Header().Set("Content-Type", "application/json")
-	w.Write(body)
-}
-
-func (handlers *Handlers) GetForum(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	slug := vars["slug"]
-
-	forum, _ := handlers.usecases.GetForumBySlug(slug)
-
-	fmt.Println(forum)
-
-	body, _ := json.Marshal(forum)
-
-	w.Header().Set("Content-Type", "application/json")
-	w.Write(body)
-}
-
 func (handlers *Handlers) GetThreads(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	slug := vars["slug"]
@@ -117,62 +185,6 @@ func (handlers *Handlers) GetThreads(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.Write(body)
-}
-
-func (handlers *Handlers) ChangeUser(w http.ResponseWriter, r *http.Request) {
-	var user models.User
-
-	defer r.Body.Close()
-	body, _ := ioutil.ReadAll(r.Body)
-
-	fmt.Println(string(body))
-	vars := mux.Vars(r)
-	nickname := vars["nickname"]
-
-	err := json.Unmarshal(body, &user)
-	if err != nil {
-
-	}
-	user.Nickname = nickname
-
-	handlers.usecases.ChangeUser(&user)
-}
-
-func (handlers *Handlers) GetStatus(w http.ResponseWriter, r *http.Request) {
-	status, _ := handlers.usecases.GetStatus()
-
-	fmt.Println(status)
-
-	body, _ := json.Marshal(status)
-
-	w.Header().Set("Content-Type", "application/json")
-	w.Write(body)
-}
-
-func (handlers *Handlers) Clear(w http.ResponseWriter, r *http.Request) {
-	handlers.usecases.RemoveAllData()
-}
-
-func (handlers *Handlers) PutPost(w http.ResponseWriter, r *http.Request) {
-	var post models.Post
-
-	defer r.Body.Close()
-	body, _ := ioutil.ReadAll(r.Body)
-
-	fmt.Println(string(body))
-	vars := mux.Vars(r)
-	slug_or_id := vars["slug_or_id"]
-
-	err := json.Unmarshal(body, &post)
-	if err != nil {
-
-	}
-
-	if id, err := strconv.Atoi(slug_or_id); err == nil {
-		handlers.usecases.PutPost(&post, int64(id))
-	} else {
-		handlers.usecases.PutPostWithSlug(&post, slug_or_id)
-	}
 }
 
 func (handlers *Handlers) ChangeThread(w http.ResponseWriter, r *http.Request) {
@@ -225,6 +237,65 @@ func (handlers *Handlers) GetThread(w http.ResponseWriter, r *http.Request) {
 	w.Write(body)
 }
 
+func (handlers *Handlers) PutPost(w http.ResponseWriter, r *http.Request) {
+	var post models.Post
+
+	defer r.Body.Close()
+	body, _ := ioutil.ReadAll(r.Body)
+
+	fmt.Println(string(body))
+	vars := mux.Vars(r)
+	slug_or_id := vars["slug_or_id"]
+
+	err := json.Unmarshal(body, &post)
+	if err != nil {
+
+	}
+
+	if id, err := strconv.Atoi(slug_or_id); err == nil {
+		handlers.usecases.PutPost(&post, int64(id))
+	} else {
+		handlers.usecases.PutPostWithSlug(&post, slug_or_id)
+	}
+}
+
+func (handlers *Handlers) ChangePost(w http.ResponseWriter, r *http.Request) {
+	var post models.Post
+
+	defer r.Body.Close()
+	body, _ := ioutil.ReadAll(r.Body)
+
+	fmt.Println(string(body))
+	vars := mux.Vars(r)
+	idStr := vars["id"]
+
+	id, err := strconv.Atoi(idStr)
+
+	err = json.Unmarshal(body, &post)
+	if err != nil {
+
+	}
+	post.ID = int64(id)
+
+	handlers.usecases.ChangePost(&post)
+}
+
+func (handlers *Handlers) GetPostFull(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	idStr := vars["id"]
+
+	id, _ := strconv.Atoi(idStr)
+
+	postFull, _ := handlers.usecases.GetPostFull(int64(id))
+
+	fmt.Println(postFull)
+
+	body, _ := json.Marshal(postFull)
+
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(body)
+}
+
 func (handlers *Handlers) GetPosts(w http.ResponseWriter, r *http.Request) {
 	var posts models.Posts
 	vars := mux.Vars(r)
@@ -267,53 +338,17 @@ func (handlers *Handlers) Vote(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (handlers *Handlers) GetUsers(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	slug := vars["slug"]
+func (handlers *Handlers) GetStatus(w http.ResponseWriter, r *http.Request) {
+	status, _ := handlers.usecases.GetStatus()
 
-	users, _ := handlers.usecases.GetUsersByForum(slug)
+	fmt.Println(status)
 
-	fmt.Println(users)
-
-	body, _ := json.Marshal(users)
+	body, _ := json.Marshal(status)
 
 	w.Header().Set("Content-Type", "application/json")
 	w.Write(body)
 }
 
-func (handlers *Handlers) ChangePost(w http.ResponseWriter, r *http.Request) {
-	var post models.Post
-
-	defer r.Body.Close()
-	body, _ := ioutil.ReadAll(r.Body)
-
-	fmt.Println(string(body))
-	vars := mux.Vars(r)
-	idStr := vars["id"]
-
-	id, err := strconv.Atoi(idStr)
-
-	err = json.Unmarshal(body, &post)
-	if err != nil {
-
-	}
-	post.ID = int64(id)
-
-	handlers.usecases.ChangePost(&post)
-}
-
-func (handlers *Handlers) GetPostFull(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	idStr := vars["id"]
-
-	id, _ := strconv.Atoi(idStr)
-
-	postFull, _ := handlers.usecases.GetPostFull(int64(id))
-
-	fmt.Println(postFull)
-
-	body, _ := json.Marshal(postFull)
-
-	w.Header().Set("Content-Type", "application/json")
-	w.Write(body)
+func (handlers *Handlers) Clear(w http.ResponseWriter, r *http.Request) {
+	handlers.usecases.RemoveAllData()
 }

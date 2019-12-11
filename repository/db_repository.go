@@ -1,20 +1,177 @@
 package repository
 
 import (
-	"database/sql"
 	"fmt"
 	"github.com/AleksMa/techDB/models"
+	"github.com/jackc/pgx"
 	"net/http"
 )
 
-type DBStore struct {
-	DB *sql.DB
+type Repo interface {
+	PutUser(user *models.User) (uint64, *models.Error)
+	GetDupUsers(user *models.User) (models.Users, *models.Error)
+	GetUserByID(id int64) (models.User, *models.Error)
+	GetUserByNickname(nickname string) (models.User, *models.Error)
+	ChangeUser(user *models.User) *models.Error
+
+	PutForum(forum *models.Forum, ownerID int64) (uint64, error)
+	PutThread(thread *models.Thread, forumID int64, authorID int64) (uint64, error)
+
+	GetForumBySlug(slug string) (models.Forum, int64, error)
+	GetForumByID(id int64) (models.Forum, int64, error)
+	GetThreadsByForum(forumID int64) (models.Threads, error)
+	GetStatus() (models.Status, error)
+	ReloadDB() error
+	GetThreadBySlug(slug string) (models.Thread, int64, error)
+	GetThreadByID(id int64) (models.Thread, int64, error)
+	PutPost(post *models.Post) (uint64, error)
+	UpdateThreadWithID(thread *models.Thread) error
+	UpdateThreadWithSlug(thread *models.Thread) error
+	GetPostsByThreadID(threadID int64) (models.Posts, error)
+	PutVote(vote *models.Vote) (uint64, error)
+	GetUsersByForum(forumID int64) (models.Users, error)
+	ChangePost(post *models.Post) error
+	GetPost(ID int64) (models.Post, error)
 }
 
-func NewDBStore(db *sql.DB) Repo {
+type DBStore struct {
+	DB *pgx.ConnPool
+}
+
+func NewDBStore(db *pgx.ConnPool) Repo {
 	return &DBStore{
 		db,
 	}
+}
+
+// =============================== USERS ======================================
+
+func (store *DBStore) PutUser(user *models.User) (uint64, *models.Error) {
+	fmt.Println(user)
+	var ID uint64
+
+	insertQuery := `INSERT INTO users (nickname, about, email, fullname) VALUES ($1, $2, $3, $4) RETURNING id`
+	rows := store.DB.QueryRow(insertQuery,
+		user.Nickname, user.About, user.Email, user.Fullname)
+
+	err := rows.Scan(&ID)
+	if err != nil {
+		fmt.Println(err)
+		return 0, models.NewError(http.StatusInternalServerError, err.Error())
+	}
+
+	return ID, nil
+}
+
+func (store *DBStore) GetDupUsers(user *models.User) (models.Users, *models.Error) {
+	users := models.Users{}
+
+	selectStr := "SELECT DISTINCT nickname, about, email, fullname FROM users WHERE nickname=$1 OR email=$2"
+
+	rows, err := store.DB.Query(selectStr, user.Nickname, user.Email)
+	if err != nil {
+		fmt.Println(err)
+		return users, models.NewError(http.StatusInternalServerError, err.Error())
+	}
+
+	for rows.Next() {
+		user := &models.User{}
+		err := rows.Scan(&user.Nickname, &user.About, &user.Email, &user.Fullname)
+		if err != nil {
+			return users, models.NewError(http.StatusInternalServerError, err.Error())
+		}
+		users = append(users, user)
+	}
+
+	rows.Close()
+
+	if err != nil {
+		return users, models.NewError(http.StatusInternalServerError, err.Error())
+	}
+
+	return users, nil
+}
+
+func (store *DBStore) GetUserByNickname(nickname string) (models.User, *models.Error) {
+	user := &models.User{}
+
+	selectStr := "SELECT id, nickname, about, email, fullname FROM users WHERE nickname = $1"
+	row := store.DB.QueryRow(selectStr, nickname)
+
+	err := row.Scan(&user.ID, &user.Nickname, &user.About, &user.Email, &user.Fullname)
+
+	if err != nil {
+		fmt.Println(err)
+		if err == pgx.ErrNoRows {
+			return *user, models.NewError(http.StatusNotFound, err.Error())
+		}
+		return *user, models.NewError(http.StatusInternalServerError, err.Error())
+	}
+
+	return *user, nil
+}
+
+func (store *DBStore) GetUserByID(id int64) (models.User, *models.Error) {
+	user := &models.User{}
+
+	selectStr := "SELECT id, nickname, about, email, fullname FROM users WHERE id = $1"
+	row := store.DB.QueryRow(selectStr, id)
+
+	err := row.Scan(&user.ID, &user.Nickname, &user.About, &user.Email, &user.Fullname)
+
+	if err != nil {
+		fmt.Println(err)
+		if err == pgx.ErrNoRows {
+			return *user, models.NewError(http.StatusNotFound, err.Error())
+		}
+		return *user, models.NewError(http.StatusInternalServerError, err.Error())
+	}
+
+	return *user, nil
+}
+
+func (store *DBStore) ChangeUser(user *models.User) *models.Error {
+
+	insertQuery := `UPDATE users SET about=$1, email=$2, fullname=$3 WHERE nickname=$4`
+	_, err := store.DB.Exec(insertQuery,
+		user.About, user.Email, user.Fullname, user.Nickname)
+
+	if err != nil {
+		if pgerr, ok := err.(pgx.PgError); ok && pgerr.Code == "23505" {
+			return models.NewError(http.StatusConflict, err.Error())
+		}
+		return models.NewError(http.StatusInternalServerError, err.Error())
+	}
+
+	return nil
+}
+
+func (store *DBStore) GetUsersByForum(forumID int64) (models.Users, error) {
+	users := models.Users{}
+
+	selectStr := "SELECT DISTINCT authorid FROM posts WHERE forumID = $1 UNION SELECT authorid FROM threads WHERE forumID = $1"
+	rows, err := store.DB.Query(selectStr, forumID)
+	if err != nil {
+		fmt.Println(err)
+		return users, models.NewServerError(err, http.StatusInternalServerError, "Can not get all users: "+err.Error())
+	}
+
+	for rows.Next() {
+		user := &models.User{}
+		err := rows.Scan(&user.ID)
+		if err != nil {
+			return users, models.NewServerError(err, http.StatusInternalServerError, "Can not get all users: "+err.Error())
+		}
+		users = append(users, user)
+	}
+
+	rows.Close()
+
+	if err != nil {
+		return users, models.NewServerError(err, http.StatusInternalServerError, "Can not get user: "+err.Error())
+	}
+
+	return users, nil
 }
 
 func (store *DBStore) PutForum(forum *models.Forum, ownerID int64) (uint64, error) {
@@ -31,71 +188,6 @@ func (store *DBStore) PutForum(forum *models.Forum, ownerID int64) (uint64, erro
 	}
 
 	return ID, nil
-}
-
-func (store *DBStore) PutThread(thread *models.Thread, forumID int64, authorID int64) (uint64, error) {
-	fmt.Println(thread)
-	var ID uint64
-
-	insertQuery := `INSERT INTO threads (created, forumid, message, slug, title, authorid) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`
-	rows := store.DB.QueryRow(insertQuery,
-		thread.Created, forumID, thread.Message, thread.Slug, thread.Title, authorID)
-
-	err := rows.Scan(&ID)
-	if err != nil {
-		fmt.Println("ERROR: ", err)
-		return 0, models.NewServerError(err, http.StatusInternalServerError, "Can not put thread: "+err.Error())
-	}
-
-	return ID, nil
-}
-
-func (store *DBStore) PutUser(user *models.User) (uint64, error) {
-	fmt.Println(user)
-	var ID uint64
-
-	insertQuery := `INSERT INTO users (nickname, about, email, fullname) VALUES ($1, $2, $3, $4) RETURNING id`
-	rows := store.DB.QueryRow(insertQuery,
-		user.Nickname, user.About, user.Email, user.Fullname)
-
-	err := rows.Scan(&ID)
-	if err != nil {
-		fmt.Println(err)
-		return 0, models.NewServerError(err, http.StatusInternalServerError, "Can not put user: "+err.Error())
-	}
-
-	return ID, nil
-}
-
-func (store *DBStore) GetUserByNickname(nickname string) (models.User, error) {
-	user := &models.User{}
-
-	selectStr := "SELECT id, nickname, about, email, fullname FROM users WHERE nickname = $1"
-	row := store.DB.QueryRow(selectStr, nickname)
-
-	err := row.Scan(&user.ID, &user.Nickname, &user.About, &user.Email, &user.Fullname)
-
-	if err != nil {
-		fmt.Println(err)
-		return *user, models.NewServerError(err, http.StatusInternalServerError, "Can not get user: "+err.Error())
-	}
-
-	return *user, nil
-}
-
-func (store *DBStore) GetUserByID(id int64) (models.User, error) {
-	user := &models.User{}
-
-	selectStr := "SELECT id, nickname, about, email, fullname FROM users WHERE id = $1"
-	row := store.DB.QueryRow(selectStr, id)
-
-	err := row.Scan(&user.ID, &user.Nickname, &user.About, &user.Email, &user.Fullname)
-
-	if err != nil {
-		return *user, models.NewServerError(err, http.StatusInternalServerError, "Can not get user: "+err.Error())
-	}
-
-	return *user, nil
 }
 
 func (store *DBStore) GetForumBySlug(slug string) (models.Forum, int64, error) {
@@ -130,6 +222,23 @@ func (store *DBStore) GetForumByID(id int64) (models.Forum, int64, error) {
 	return *forum, ownerID, nil
 }
 
+func (store *DBStore) PutThread(thread *models.Thread, forumID int64, authorID int64) (uint64, error) {
+	fmt.Println(thread)
+	var ID uint64
+
+	insertQuery := `INSERT INTO threads (created, forumid, message, slug, title, authorid) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`
+	rows := store.DB.QueryRow(insertQuery,
+		thread.Created, forumID, thread.Message, thread.Slug, thread.Title, authorID)
+
+	err := rows.Scan(&ID)
+	if err != nil {
+		fmt.Println("ERROR: ", err)
+		return 0, models.NewServerError(err, http.StatusInternalServerError, "Can not put thread: "+err.Error())
+	}
+
+	return ID, nil
+}
+
 func (store *DBStore) GetThreadsByForum(forumID int64) (models.Threads, error) {
 	threads := models.Threads{}
 
@@ -155,48 +264,6 @@ func (store *DBStore) GetThreadsByForum(forumID int64) (models.Threads, error) {
 	}
 
 	return threads, nil
-}
-
-func (store *DBStore) ChangeUser(user *models.User) error {
-	fmt.Println(user)
-
-	insertQuery := `UPDATE users SET about=$1, email=$2, fullname=$3 WHERE nickname=$4`
-	_, err := store.DB.Exec(insertQuery,
-		user.About, user.Email, user.Fullname, user.Nickname)
-
-	if err != nil {
-		return models.NewServerError(err, http.StatusInternalServerError, "Can not put user: "+err.Error())
-	}
-
-	return nil
-}
-
-func (store *DBStore) GetStatus() (models.Status, error) {
-	tx, _ := store.DB.Begin()
-	defer tx.Rollback()
-
-	status := &models.Status{}
-
-	row := tx.QueryRow(`SELECT count(*) FROM forums`)
-	row.Scan(&status.Forum)
-
-	row = tx.QueryRow(`SELECT count(*) FROM posts`)
-	row.Scan(&status.Post)
-
-	row = tx.QueryRow(`SELECT count(*) FROM threads`)
-	row.Scan(&status.Thread)
-
-	row = tx.QueryRow(`SELECT count(*) FROM users`)
-	row.Scan(&status.User)
-
-	tx.Commit()
-
-	return *status, nil
-}
-
-func (store *DBStore) ReloadDB() error {
-	_, err := store.DB.Exec(models.InitScript)
-	return err
 }
 
 func (store *DBStore) GetThreadBySlug(slug string) (models.Thread, int64, error) {
@@ -231,24 +298,6 @@ func (store *DBStore) GetThreadByID(id int64) (models.Thread, int64, error) {
 	return *thread, ownerID, nil
 }
 
-func (store *DBStore) PutPost(post *models.Post) (uint64, error) {
-	fmt.Println(post)
-	var ID uint64
-
-	insertQuery := `INSERT INTO posts (created, forumid, isedited, message, parentid, authorid, threadid) 
-		VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`
-	rows := store.DB.QueryRow(insertQuery,
-		post.Created, post.ForumID, false, post.Message, 0, post.AuthorID, post.Thread)
-
-	err := rows.Scan(&ID)
-	if err != nil {
-		fmt.Println("ERROR: ", err)
-		return 0, models.NewServerError(err, http.StatusInternalServerError, "Can not put post: "+err.Error())
-	}
-
-	return ID, nil
-}
-
 func (store *DBStore) UpdateThreadWithSlug(thread *models.Thread) error {
 	fmt.Println(thread)
 
@@ -275,6 +324,24 @@ func (store *DBStore) UpdateThreadWithID(thread *models.Thread) error {
 	}
 
 	return nil
+}
+
+func (store *DBStore) PutPost(post *models.Post) (uint64, error) {
+	fmt.Println(post)
+	var ID uint64
+
+	insertQuery := `INSERT INTO posts (created, forumid, isedited, message, parentid, authorid, threadid) 
+		VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`
+	rows := store.DB.QueryRow(insertQuery,
+		post.Created, post.ForumID, false, post.Message, 0, post.AuthorID, post.Thread)
+
+	err := rows.Scan(&ID)
+	if err != nil {
+		fmt.Println("ERROR: ", err)
+		return 0, models.NewServerError(err, http.StatusInternalServerError, "Can not put post: "+err.Error())
+	}
+
+	return ID, nil
 }
 
 func (store *DBStore) GetPostsByThreadID(threadID int64) (models.Posts, error) {
@@ -306,36 +373,6 @@ func (store *DBStore) GetPostsByThreadID(threadID int64) (models.Posts, error) {
 	return posts, nil
 }
 
-/*
-func (store *DBStore) GetPostsByThreadSlug(slug int64) (models.Posts, error) {
-	posts := models.Posts{}
-
-	selectStr := `SELECT ID, created, forumid, isEdited, message, parentid, authorid, threadid
-			FROM posts WHERE slug = $1`
-	rows, err := store.DB.Query(selectStr, slug)
-	if err != nil {
-		return posts, models.NewServerError(err, http.StatusInternalServerError, "Can not get all users: "+err.Error())
-	}
-
-	for rows.Next() {
-		post := &models.Post{}
-		err := rows.Scan(&post.ID, &post.Created, &post.ForumID, &post.IsEdited,
-			&post.Message, &post.Parent, &post.AuthorID, &post.Thread)
-		if err != nil {
-			return posts, models.NewServerError(err, http.StatusInternalServerError, "Can not get all users: "+err.Error())
-		}
-		posts = append(posts, post)
-	}
-
-	rows.Close()
-
-	if err != nil {
-		return posts, models.NewServerError(err, http.StatusInternalServerError, "Can not get user: "+err.Error())
-	}
-
-	return posts, nil
-}*/
-
 func (store *DBStore) PutVote(vote *models.Vote) (uint64, error) {
 	fmt.Println(vote)
 	var ID uint64
@@ -351,34 +388,6 @@ func (store *DBStore) PutVote(vote *models.Vote) (uint64, error) {
 	}
 
 	return ID, nil
-}
-
-func (store *DBStore) GetUsersByForum(forumID int64) (models.Users, error) {
-	users := models.Users{}
-
-	selectStr := "SELECT DISTINCT authorid FROM posts WHERE forumID = $1 UNION SELECT authorid FROM threads WHERE forumID = $1"
-	rows, err := store.DB.Query(selectStr, forumID)
-	if err != nil {
-		fmt.Println(err)
-		return users, models.NewServerError(err, http.StatusInternalServerError, "Can not get all users: "+err.Error())
-	}
-
-	for rows.Next() {
-		user := &models.User{}
-		err := rows.Scan(&user.ID)
-		if err != nil {
-			return users, models.NewServerError(err, http.StatusInternalServerError, "Can not get all users: "+err.Error())
-		}
-		users = append(users, user)
-	}
-
-	rows.Close()
-
-	if err != nil {
-		return users, models.NewServerError(err, http.StatusInternalServerError, "Can not get user: "+err.Error())
-	}
-
-	return users, nil
 }
 
 func (store *DBStore) ChangePost(post *models.Post) error {
@@ -408,4 +417,32 @@ func (store *DBStore) GetPost(id int64) (models.Post, error) {
 	}
 
 	return *post, nil
+}
+
+func (store *DBStore) GetStatus() (models.Status, error) {
+	tx, _ := store.DB.Begin()
+	defer tx.Rollback()
+
+	status := &models.Status{}
+
+	row := tx.QueryRow(`SELECT count(*) FROM forums`)
+	row.Scan(&status.Forum)
+
+	row = tx.QueryRow(`SELECT count(*) FROM posts`)
+	row.Scan(&status.Post)
+
+	row = tx.QueryRow(`SELECT count(*) FROM threads`)
+	row.Scan(&status.Thread)
+
+	row = tx.QueryRow(`SELECT count(*) FROM users`)
+	row.Scan(&status.User)
+
+	tx.Commit()
+
+	return *status, nil
+}
+
+func (store *DBStore) ReloadDB() error {
+	_, err := store.DB.Exec(models.InitScript)
+	return err
 }
