@@ -7,4 +7,5 @@ type Forum struct {
 	Posts   int64  `json:"posts"`
 	Threads int32  `json:"threads"`
 	Owner   string `json:"user"`
+	OwnerID int64  `json:"-"`
 }

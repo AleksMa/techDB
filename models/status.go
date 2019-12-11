@@ -15,16 +15,17 @@ CREATE TABLE users
     ID       BIGSERIAL NOT NULL PRIMARY KEY,
     nickname CITEXT,
     about    TEXT,
-    email    TEXT UNIQUE,
+    email    CITEXT UNIQUE,
     fullname TEXT
 );
+
 
 
 DROP TABLE IF EXISTS forums CASCADE;
 CREATE TABLE forums
 (
     ID       BIGSERIAL NOT NULL PRIMARY KEY,
-    slug     TEXT      NOT NULL UNIQUE,
+    slug     CITEXT      NOT NULL UNIQUE,
     title    TEXT      NOT NULL,
     authorID BIGINT    NOT NULL,
     FOREIGN KEY (authorID) REFERENCES users (ID) ON DELETE CASCADE

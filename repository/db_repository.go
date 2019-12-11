@@ -14,10 +14,11 @@ type Repo interface {
 	GetUserByNickname(nickname string) (models.User, *models.Error)
 	ChangeUser(user *models.User) *models.Error
 
-	PutForum(forum *models.Forum, ownerID int64) (uint64, error)
+	PutForum(forum *models.Forum) (uint64, *models.Error)
+	GetForumBySlug(slug string) (models.Forum, *models.Error)
+
 	PutThread(thread *models.Thread, forumID int64, authorID int64) (uint64, error)
 
-	GetForumBySlug(slug string) (models.Forum, int64, error)
 	GetForumByID(id int64) (models.Forum, int64, error)
 	GetThreadsByForum(forumID int64) (models.Threads, error)
 	GetStatus() (models.Status, error)
@@ -174,36 +175,39 @@ func (store *DBStore) GetUsersByForum(forumID int64) (models.Users, error) {
 	return users, nil
 }
 
-func (store *DBStore) PutForum(forum *models.Forum, ownerID int64) (uint64, error) {
+func (store *DBStore) PutForum(forum *models.Forum) (uint64, *models.Error) {
 	fmt.Println(forum)
 	var ID uint64
 
 	insertQuery := `INSERT INTO forums (slug, title, authorid) VALUES ($1, $2, $3) RETURNING id`
 	rows := store.DB.QueryRow(insertQuery,
-		forum.Slug, forum.Title, ownerID)
+		forum.Slug, forum.Title, forum.OwnerID)
 
 	err := rows.Scan(&ID)
 	if err != nil {
-		return 0, models.NewServerError(err, http.StatusInternalServerError, "Can not put user: "+err.Error())
+		return 0, models.NewError(http.StatusInternalServerError, err.Error())
 	}
 
 	return ID, nil
 }
 
-func (store *DBStore) GetForumBySlug(slug string) (models.Forum, int64, error) {
+func (store *DBStore) GetForumBySlug(slug string) (models.Forum, *models.Error) {
 	forum := &models.Forum{}
-	var ownerID int64
 
 	selectStr := "SELECT ID, slug, title, authorid FROM forums WHERE slug = $1"
 	row := store.DB.QueryRow(selectStr, slug)
 
-	err := row.Scan(&forum.ID, &forum.Slug, &forum.Title, &ownerID)
+	err := row.Scan(&forum.ID, &forum.Slug, &forum.Title, &forum.OwnerID)
 
 	if err != nil {
-		return *forum, 0, models.NewServerError(err, http.StatusInternalServerError, "Can not get user: "+err.Error())
+		fmt.Println(err)
+		if err == pgx.ErrNoRows {
+			return *forum, models.NewError(http.StatusNotFound, err.Error())
+		}
+		return *forum, models.NewError(http.StatusInternalServerError, err.Error())
 	}
 
-	return *forum, ownerID, nil
+	return *forum, nil
 }
 
 func (store *DBStore) GetForumByID(id int64) (models.Forum, int64, error) {

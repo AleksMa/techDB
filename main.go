@@ -44,7 +44,7 @@ func main() {
 	}
 
 	r := mux.NewRouter()
-	r.HandleFunc("/forum/create", api.PostForum).Methods("POST")
+	r.HandleFunc("/forum/create", api.CreateForum).Methods("POST")
 
 	//TODO: PUT/UPDATE POST, GET USERS
 
