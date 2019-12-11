@@ -80,7 +80,7 @@ func (handlers *Handlers) GetUser(w http.ResponseWriter, r *http.Request) {
 }
 
 func (handlers *Handlers) UpdateUser(w http.ResponseWriter, r *http.Request) {
-	var user models.User
+	var userUpd models.UpdateUserFields
 	var e *models.Error
 
 	defer r.Body.Close()
@@ -90,15 +90,13 @@ func (handlers *Handlers) UpdateUser(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	nickname := vars["nickname"]
 
-	err := json.Unmarshal(body, &user)
+	err := json.Unmarshal(body, &userUpd)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	user.Nickname = nickname
-
-	user, e = handlers.usecases.ChangeUser(&user)
+	user, e := handlers.usecases.ChangeUser(&userUpd, nickname)
 	if e != nil {
 		body, _ = json.Marshal(e)
 		WriteResponse(w, body, e.Code)

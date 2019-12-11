@@ -10,7 +10,7 @@ import (
 type UseCase interface {
 	PutUser(user *models.User) (models.Users, *models.Error)
 	GetUserByNickname(nickname string) (models.User, *models.Error)
-	ChangeUser(user *models.User) (models.User, *models.Error)
+	ChangeUser(userUpd *models.UpdateUserFields, nickname string) (models.User, *models.Error)
 
 	PutForum(newForum *models.Forum) error
 	PutThread(newThread *models.Thread) error
@@ -64,15 +64,24 @@ func (u *useCase) GetUserByNickname(nickname string) (models.User, *models.Error
 	return u.repository.GetUserByNickname(nickname)
 }
 
-func (u *useCase) ChangeUser(user *models.User) (models.User, *models.Error) {
-	tempUser, err := u.repository.GetUserByNickname(user.Nickname)
+func (u *useCase) ChangeUser(userUpd *models.UpdateUserFields, nickname string) (models.User, *models.Error) {
+	tempUser, err := u.repository.GetUserByNickname(nickname)
 	if err != nil {
-		return *user, err
+		return tempUser, err
 	}
-	err = u.repository.ChangeUser(user)
-	fmt.Println(*user)
+	if userUpd.Email != nil {
+		tempUser.Email = *userUpd.Email
+	}
+	if userUpd.Fullname != nil {
+		tempUser.Fullname = *userUpd.Fullname
+	}
+	if userUpd.About != nil {
+		tempUser.About = *userUpd.About
+	}
+	err = u.repository.ChangeUser(&tempUser)
+	fmt.Println(*userUpd)
 	fmt.Println(tempUser)
-	return *user, err
+	return tempUser, err
 }
 
 func (u *useCase) GetUsersByForum(slug string) (models.Users, error) {
