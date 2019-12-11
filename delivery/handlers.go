@@ -9,6 +9,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"strconv"
+	"time"
 )
 
 type Handlers struct {
@@ -66,10 +67,27 @@ func (handlers *Handlers) GetThreads(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	slug := vars["slug"]
 
-	threads, err := handlers.usecases.GetThreadsByForum(slug)
+	query := r.URL.Query()
+	var params models.ThreadParams
+	var err error
+
+	params.Limit, err = strconv.Atoi(query.Get("limit"))
 	if err != nil {
+		params.Limit = -1
+	}
+	fmt.Println("SINCE", query.Get("since"))
+	params.Since, err = time.Parse(time.RFC3339Nano, query.Get("since"))
+	if err != nil {
+		params.Since = time.Time{}
+	} else {
+		params.Since = params.Since.Add(time.Hour * 3)
+	}
+	params.Desc = query.Get("desc") == "true"
+
+	threads, e := handlers.usecases.GetThreadsByForum(slug, params)
+	if e != nil {
 		body, _ := json.Marshal(err)
-		WriteResponse(w, body, err.Code)
+		WriteResponse(w, body, e.Code)
 		return
 	}
 	fmt.Println(threads)

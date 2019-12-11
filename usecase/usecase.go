@@ -20,8 +20,7 @@ type UseCase interface {
 	PutThread(thread *models.Thread) (models.Thread, *models.Error)
 	GetThreadBySlug(slug string) (models.Thread, *models.Error)
 	GetUserByID(id int64) (models.User, *models.Error)
-
-	GetThreadsByForum(slug string) (models.Threads, *models.Error)
+	GetThreadsByForum(slug string, params models.ThreadParams) (models.Threads, *models.Error)
 
 	GetStatus() (models.Status, error)
 	RemoveAllData() error
@@ -105,13 +104,13 @@ func (u *useCase) GetThreadBySlug(slug string) (models.Thread, *models.Error) {
 	return thread, nil
 }
 
-func (u *useCase) GetThreadsByForum(slug string) (models.Threads, *models.Error) {
+func (u *useCase) GetThreadsByForum(slug string, params models.ThreadParams) (models.Threads, *models.Error) {
 	forum, err := u.GetForumBySlug(slug)
 	if err != nil {
 		return nil, err
 	}
 
-	threads, _ := u.repository.GetThreadsByForum(forum.ID)
+	threads, _ := u.repository.GetThreadsByForum(forum.ID, params)
 	for i, _ := range threads {
 		threads[i].Forum = forum.Slug
 		user, _ := u.repository.GetUserByID(threads[i].AuthorID)

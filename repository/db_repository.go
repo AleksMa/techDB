@@ -5,6 +5,8 @@ import (
 	"github.com/AleksMa/techDB/models"
 	"github.com/jackc/pgx"
 	"net/http"
+	"strconv"
+	"time"
 )
 
 type Repo interface {
@@ -21,10 +23,7 @@ type Repo interface {
 	PutThread(thread *models.Thread) (uint64, *models.Error)
 	GetThreadBySlug(slug string) (models.Thread, *models.Error)
 	GetThreadByID(id int64) (models.Thread, *models.Error)
-
-	GetThreadsByForum(forumID int64) (models.Threads, error)
-	GetStatus() (models.Status, error)
-	ReloadDB() error
+	GetThreadsByForum(forumID int64, params models.ThreadParams) (models.Threads, error)
 
 	PutPost(post *models.Post) (uint64, error)
 	UpdateThreadWithID(thread *models.Thread) error
@@ -34,6 +33,9 @@ type Repo interface {
 	GetUsersByForum(forumID int64) (models.Users, error)
 	ChangePost(post *models.Post) error
 	GetPost(ID int64) (models.Post, error)
+
+	GetStatus() (models.Status, error)
+	ReloadDB() error
 }
 
 type DBStore struct {
@@ -63,11 +65,40 @@ func (store *DBStore) PutThread(thread *models.Thread) (uint64, *models.Error) {
 	return ID, nil
 }
 
-func (store *DBStore) GetThreadsByForum(forumID int64) (models.Threads, error) {
+func (store *DBStore) GetThreadsByForum(forumID int64, params models.ThreadParams) (models.Threads, error) {
+	fmt.Println("PARAMS: ", params)
 	threads := models.Threads{}
+	args := 1
+	curParams := []interface{}{forumID}
 
 	selectStr := "SELECT ID, created, message, slug, title, authorid FROM threads WHERE forumID = $1"
-	rows, err := store.DB.Query(selectStr, forumID)
+
+	if !params.Since.IsZero() {
+		selectStr += " AND created"
+		if params.Desc {
+			selectStr += " <="
+		} else {
+			selectStr += " >="
+		}
+		selectStr += " $2"
+		args++
+		curParams = append(curParams, params.Since)
+	}
+	selectStr += " ORDER BY created"
+	if params.Desc {
+		selectStr += " DESC"
+	}
+	if params.Limit != -1 {
+		selectStr += " LIMIT $"
+		selectStr += strconv.Itoa(args + 1)
+		args++
+		curParams = append(curParams, params.Limit)
+	}
+	selectStr += ";"
+
+	fmt.Println(selectStr)
+
+	rows, err := store.DB.Query(selectStr, curParams...)
 	if err != nil {
 		return threads, models.NewServerError(err, http.StatusInternalServerError, "Can not get all users: "+err.Error())
 	}
@@ -75,6 +106,7 @@ func (store *DBStore) GetThreadsByForum(forumID int64) (models.Threads, error) {
 	for rows.Next() {
 		thread := &models.Thread{}
 		err := rows.Scan(&thread.ID, &thread.Created, &thread.Message, &thread.Slug, &thread.Title, &thread.AuthorID)
+		thread.Created = thread.Created.Add(time.Duration(-3) * time.Hour)
 		if err != nil {
 			return threads, models.NewServerError(err, http.StatusInternalServerError, "Can not get all users: "+err.Error())
 		}
