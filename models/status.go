@@ -36,11 +36,11 @@ DROP TABLE IF EXISTS threads CASCADE;
 CREATE TABLE threads
 (
     ID       BIGSERIAL NOT NULL PRIMARY KEY,
-    created  TIMESTAMP,
+    created  TIMESTAMP WITH TIME ZONE,
     forumID  BIGINT    NOT NULL,
     message  TEXT,
 
-    slug     CITEXT UNIQUE,
+    slug     CITEXT UNIQUE DEFAULT NULL,
     title    TEXT,
 
     authorID BIGINT    NOT NULL,
@@ -53,7 +53,7 @@ DROP TABLE IF EXISTS posts CASCADE;
 CREATE TABLE posts
 (
     ID       BIGSERIAL NOT NULL PRIMARY KEY,
-    created  TIMESTAMP,
+    created  TIMESTAMP WITH TIME ZONE,
     forumID  BIGINT    NOT NULL,
     isEdited BOOLEAN,
     message  TEXT,

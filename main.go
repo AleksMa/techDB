@@ -4,6 +4,7 @@ import (
 	//"database/sql"
 	"fmt"
 	"github.com/AleksMa/techDB/delivery"
+	"github.com/AleksMa/techDB/models"
 	"github.com/AleksMa/techDB/repository"
 	useCase "github.com/AleksMa/techDB/usecase"
 	"github.com/gorilla/mux"
@@ -37,7 +38,7 @@ func main() {
 	usecases := useCase.NewUseCase(repository.NewDBStore(db))
 	api := delivery.NewHandlers(usecases)
 
-	//_, err = db.Exec(models.InitScript)
+	_, err = db.Exec(models.InitScript)
 
 	if err != nil {
 		fmt.Println(err)
@@ -46,14 +47,12 @@ func main() {
 	r := mux.NewRouter()
 	r.HandleFunc("/forum/create", api.CreateForum).Methods("POST")
 
-	//TODO: PUT/UPDATE POST, GET USERS
-
 	r.HandleFunc("/forum/{slug}/create", api.CreateThread).Methods("POST")
 	r.HandleFunc("/forum/{slug}/details", api.GetForum).Methods("GET")
 	r.HandleFunc("/forum/{slug}/threads", api.GetThreads).Methods("GET")
 	r.HandleFunc("/forum/{slug}/users", api.GetUsers).Methods("GET")
 
-	r.HandleFunc("/thread/{slug_or_id}/create", api.PutPost).Methods("POST")
+	r.HandleFunc("/thread/{slug_or_id}/create", api.CreatePost).Methods("POST")
 	r.HandleFunc("/thread/{slug_or_id}/details", api.GetThread).Methods("GET")
 	r.HandleFunc("/thread/{slug_or_id}/details", api.ChangeThread).Methods("POST")
 	r.HandleFunc("/thread/{slug_or_id}/posts", api.GetPosts).Methods("GET")
