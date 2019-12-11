@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/AleksMa/techDB/models"
 	"github.com/AleksMa/techDB/repository"
+	"net/http"
 	"time"
 )
 
@@ -16,14 +17,17 @@ type UseCase interface {
 	GetForumBySlug(slug string) (models.Forum, *models.Error)
 	GetForumByID(id int64) (models.Forum, *models.Error)
 
-	PutThread(newThread *models.Thread) error
-	GetThreadsByForum(slug string) (models.Threads, error)
+	PutThread(thread *models.Thread) (models.Thread, *models.Error)
+	GetThreadBySlug(slug string) (models.Thread, *models.Error)
+	GetUserByID(id int64) (models.User, *models.Error)
+
+	GetThreadsByForum(slug string) (models.Threads, *models.Error)
+
 	GetStatus() (models.Status, error)
 	RemoveAllData() error
 	PutPost(post *models.Post, threadID int64) (models.Post, error)
 	PutPostWithSlug(post *models.Post, threadSlug string) (models.Post, error)
 	GetThreadByID(id int64) (models.Thread, error)
-	GetThreadBySlug(slug string) (models.Thread, error)
 	UpdateThreadWithID(thread *models.Thread) (models.Thread, error)
 	UpdateThreadWithSlug(thread *models.Thread) (models.Thread, error)
 	GetPostsByThreadID(id int64) (models.Posts, error)
@@ -46,21 +50,66 @@ func NewUseCase(repo repository.Repo) UseCase {
 	}
 }
 
-func (u *useCase) PutThread(newThread *models.Thread) error {
-	fmt.Println(newThread)
-	//TODO: contains check
-	user, _ := u.repository.GetUserByNickname(newThread.Author)
-	forum, _ := u.GetForumBySlug(newThread.Forum)
+func (u *useCase) PutThread(thread *models.Thread) (models.Thread, *models.Error) {
+	fmt.Println(thread)
+	if thread.Slug != "" {
+		dupForum, err := u.GetThreadBySlug(thread.Slug)
+		if err == nil || err.Code != http.StatusNotFound {
+			fmt.Println("DUP: ", dupForum)
+			return dupForum, models.NewError(http.StatusConflict, "forum already created")
+		}
+	}
 
-	fmt.Println(user, forum)
+	user, err := u.GetUserByNickname(thread.Author)
+	if err != nil {
+		if err.Code == http.StatusNotFound {
+			return *thread, models.NewError(http.StatusNotFound, "No user found: "+err.Message)
+		}
+		return *thread, models.NewError(http.StatusInternalServerError, err.Message)
+	}
 
-	u.repository.PutThread(newThread, forum.ID, user.ID)
-	//TODO: error check
-	return nil
+	forum, err := u.GetForumBySlug(thread.Forum)
+	if err != nil {
+		if err.Code == http.StatusNotFound {
+			return *thread, models.NewError(http.StatusNotFound, "No forum found: "+err.Message)
+		}
+		return *thread, models.NewError(http.StatusInternalServerError, err.Message)
+	}
+	thread.AuthorID = user.ID
+	thread.ForumID = forum.ID
+
+	id, err := u.repository.PutThread(thread)
+	if err != nil {
+		return *thread, err
+	}
+	thread.ID = int64(id)
+	return *thread, nil
 }
 
-func (u *useCase) GetThreadsByForum(slug string) (models.Threads, error) {
-	forum, _ := u.GetForumBySlug(slug)
+func (u *useCase) GetThreadBySlug(slug string) (models.Thread, *models.Error) {
+	thread, err := u.repository.GetThreadBySlug(slug)
+	fmt.Println(thread)
+
+	owner, err := u.GetUserByID(thread.AuthorID)
+	if err != nil {
+		return thread, err
+	}
+	thread.Author = owner.Nickname
+
+	forum, err := u.repository.GetForumBySlug(slug)
+	if err != nil {
+		return thread, err
+	}
+
+	thread.Forum = forum.Slug
+	return thread, nil
+}
+
+func (u *useCase) GetThreadsByForum(slug string) (models.Threads, *models.Error) {
+	forum, err := u.GetForumBySlug(slug)
+	if err != nil {
+		return nil, err
+	}
 
 	threads, _ := u.repository.GetThreadsByForum(forum.ID)
 	for i, _ := range threads {
@@ -71,20 +120,10 @@ func (u *useCase) GetThreadsByForum(slug string) (models.Threads, error) {
 	return threads, nil
 }
 
-func (u *useCase) GetThreadBySlug(slug string) (models.Thread, error) {
-	thread, ownerID, _ := u.repository.GetThreadBySlug(slug)
-	fmt.Println(thread, ownerID)
-	owner, _ := u.repository.GetUserByID(ownerID)
-	thread.Author = owner.Nickname
-	forum, _ := u.GetForumByID(thread.ForumID)
-	thread.Forum = forum.Slug
-	return thread, nil
-}
-
 func (u *useCase) GetThreadByID(id int64) (models.Thread, error) {
-	thread, ownerID, _ := u.repository.GetThreadByID(id)
-	fmt.Println(thread, ownerID)
-	owner, _ := u.repository.GetUserByID(ownerID)
+	thread, _ := u.repository.GetThreadByID(id)
+	fmt.Println(thread)
+	owner, _ := u.repository.GetUserByID(thread.AuthorID)
 	thread.Author = owner.Nickname
 	forum, _ := u.GetForumByID(thread.ForumID)
 	thread.Forum = forum.Slug
@@ -97,7 +136,7 @@ func (u *useCase) PutPost(post *models.Post, threadID int64) (models.Post, error
 	user, _ := u.repository.GetUserByNickname(post.Author)
 	// rep return array of ids
 	created := time.Now()
-	thread, _, _ := u.repository.GetThreadByID(threadID)
+	thread, _ := u.repository.GetThreadByID(threadID)
 	post.Thread = threadID
 	post.Forum = thread.Forum
 	post.ForumID = thread.ForumID
@@ -117,7 +156,7 @@ func (u *useCase) PutPostWithSlug(post *models.Post, threadSlug string) (models.
 	user, _ := u.repository.GetUserByNickname(post.Author)
 	// rep return array of ids
 	created := time.Now()
-	thread, _, _ := u.repository.GetThreadBySlug(threadSlug)
+	thread, _ := u.repository.GetThreadBySlug(threadSlug)
 	post.Thread = thread.ID
 	post.Forum = thread.Forum
 	post.AuthorID = user.ID
@@ -149,7 +188,7 @@ func (u *useCase) UpdateThreadWithSlug(thread *models.Thread) (models.Thread, er
 }
 
 func (u *useCase) GetPostsByThreadID(id int64) (models.Posts, error) {
-	thread, _, _ := u.repository.GetThreadByID(id)
+	thread, _ := u.repository.GetThreadByID(id)
 
 	posts, _ := u.repository.GetPostsByThreadID(thread.ID)
 	for i, _ := range posts {
@@ -161,7 +200,7 @@ func (u *useCase) GetPostsByThreadID(id int64) (models.Posts, error) {
 }
 
 func (u *useCase) GetPostsByThreadSlug(slug string) (models.Posts, error) {
-	thread, _, _ := u.repository.GetThreadBySlug(slug)
+	thread, _ := u.repository.GetThreadBySlug(slug)
 
 	posts, _ := u.repository.GetPostsByThreadID(thread.ID)
 	for i, _ := range posts {
@@ -201,7 +240,7 @@ func (u *useCase) GetPostFull(id int64) (models.PostFull, error) {
 	fmt.Println(err)
 
 	postFull.Author, _ = u.repository.GetUserByID(postFull.Post.AuthorID)
-	postFull.Thread, _, _ = u.repository.GetThreadByID(postFull.Post.Thread)
+	postFull.Thread, _ = u.repository.GetThreadByID(postFull.Post.Thread)
 	postFull.Forum, _ = u.GetForumByID(postFull.Post.ForumID)
 
 	return postFull, nil
@@ -212,7 +251,7 @@ func (u *useCase) PutVoteWithSlug(vote *models.Vote, slug string) (models.Vote, 
 	//TODO: contains check
 	user, _ := u.repository.GetUserByNickname(vote.Nickname)
 	vote.AuthorID = user.ID
-	thread, _, _ := u.repository.GetThreadBySlug(slug)
+	thread, _ := u.repository.GetThreadBySlug(slug)
 	vote.ThreadID = thread.ID
 	fmt.Println(vote)
 

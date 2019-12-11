@@ -26,6 +26,10 @@ func (u *useCase) GetUserByNickname(nickname string) (models.User, *models.Error
 	return u.repository.GetUserByNickname(nickname)
 }
 
+func (u *useCase) GetUserByID(id int64) (models.User, *models.Error) {
+	return u.repository.GetUserByID(id)
+}
+
 func (u *useCase) ChangeUser(userUpd *models.UpdateUserFields, nickname string) (models.User, *models.Error) {
 	tempUser, err := u.GetUserByNickname(nickname)
 	if err != nil {

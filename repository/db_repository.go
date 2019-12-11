@@ -18,13 +18,14 @@ type Repo interface {
 	GetForumBySlug(slug string) (models.Forum, *models.Error)
 	GetForumByID(id int64) (models.Forum, *models.Error)
 
-	PutThread(thread *models.Thread, forumID int64, authorID int64) (uint64, error)
+	PutThread(thread *models.Thread) (uint64, *models.Error)
+	GetThreadBySlug(slug string) (models.Thread, *models.Error)
+	GetThreadByID(id int64) (models.Thread, *models.Error)
 
 	GetThreadsByForum(forumID int64) (models.Threads, error)
 	GetStatus() (models.Status, error)
 	ReloadDB() error
-	GetThreadBySlug(slug string) (models.Thread, int64, error)
-	GetThreadByID(id int64) (models.Thread, int64, error)
+
 	PutPost(post *models.Post) (uint64, error)
 	UpdateThreadWithID(thread *models.Thread) error
 	UpdateThreadWithSlug(thread *models.Thread) error
@@ -45,18 +46,18 @@ func NewDBStore(db *pgx.ConnPool) Repo {
 	}
 }
 
-func (store *DBStore) PutThread(thread *models.Thread, forumID int64, authorID int64) (uint64, error) {
+func (store *DBStore) PutThread(thread *models.Thread) (uint64, *models.Error) {
 	fmt.Println(thread)
 	var ID uint64
 
 	insertQuery := `INSERT INTO threads (created, forumid, message, slug, title, authorid) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`
 	rows := store.DB.QueryRow(insertQuery,
-		thread.Created, forumID, thread.Message, thread.Slug, thread.Title, authorID)
+		thread.Created, thread.ForumID, thread.Message, thread.Slug, thread.Title, thread.AuthorID)
 
 	err := rows.Scan(&ID)
 	if err != nil {
 		fmt.Println("ERROR: ", err)
-		return 0, models.NewServerError(err, http.StatusInternalServerError, "Can not put thread: "+err.Error())
+		return 0, models.NewError(http.StatusInternalServerError, err.Error())
 	}
 
 	return ID, nil
@@ -89,36 +90,42 @@ func (store *DBStore) GetThreadsByForum(forumID int64) (models.Threads, error) {
 	return threads, nil
 }
 
-func (store *DBStore) GetThreadBySlug(slug string) (models.Thread, int64, error) {
+func (store *DBStore) GetThreadBySlug(slug string) (models.Thread, *models.Error) {
 	thread := &models.Thread{}
-	var ownerID int64
 
 	selectStr := "SELECT ID, created, forumid, message, slug, title, authorid FROM threads WHERE slug = $1"
 	row := store.DB.QueryRow(selectStr, slug)
 
-	err := row.Scan(&thread.ID, &thread.Created, &thread.ForumID, &thread.Message, &thread.Slug, &thread.Title, &ownerID)
+	err := row.Scan(&thread.ID, &thread.Created, &thread.ForumID, &thread.Message, &thread.Slug, &thread.Title, &thread.AuthorID)
 
 	if err != nil {
-		return *thread, 0, models.NewServerError(err, http.StatusInternalServerError, "Can not get user: "+err.Error())
+		fmt.Println(err)
+		if err == pgx.ErrNoRows {
+			return *thread, models.NewError(http.StatusNotFound, err.Error())
+		}
+		return *thread, models.NewError(http.StatusInternalServerError, err.Error())
 	}
 
-	return *thread, ownerID, nil
+	return *thread, nil
 }
 
-func (store *DBStore) GetThreadByID(id int64) (models.Thread, int64, error) {
+func (store *DBStore) GetThreadByID(id int64) (models.Thread, *models.Error) {
 	thread := &models.Thread{}
-	var ownerID int64
 
 	selectStr := "SELECT ID, created, forumid, message, slug, title, authorid FROM threads WHERE id = $1"
 	row := store.DB.QueryRow(selectStr, id)
 
-	err := row.Scan(&thread.ID, &thread.Created, &thread.ForumID, &thread.Message, &thread.Slug, &thread.Title, &ownerID)
+	err := row.Scan(&thread.ID, &thread.Created, &thread.ForumID, &thread.Message, &thread.Slug, &thread.Title, &thread.AuthorID)
 
 	if err != nil {
-		return *thread, 0, models.NewServerError(err, http.StatusInternalServerError, "Can not get user: "+err.Error())
+		fmt.Println(err)
+		if err == pgx.ErrNoRows {
+			return *thread, models.NewError(http.StatusNotFound, err.Error())
+		}
+		return *thread, models.NewError(http.StatusInternalServerError, err.Error())
 	}
 
-	return *thread, ownerID, nil
+	return *thread, nil
 }
 
 func (store *DBStore) UpdateThreadWithSlug(thread *models.Thread) error {

@@ -27,37 +27,56 @@ func WriteResponse(w http.ResponseWriter, body []byte, code int) {
 	w.Write(body)
 }
 
-func (handlers *Handlers) PostThread(w http.ResponseWriter, r *http.Request) {
+func (handlers *Handlers) CreateThread(w http.ResponseWriter, r *http.Request) {
 	var newThread models.Thread
 
 	defer r.Body.Close()
 	body, _ := ioutil.ReadAll(r.Body)
 
 	fmt.Println(string(body))
+
 	vars := mux.Vars(r)
 	slug := vars["slug"]
 
 	err := json.Unmarshal(body, &newThread)
 	if err != nil {
-
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
+
 	newThread.Forum = slug
 
-	handlers.usecases.PutThread(&newThread)
+	thread, e := handlers.usecases.PutThread(&newThread)
+	if e != nil {
+		if e.Code == http.StatusConflict {
+			body, _ = json.Marshal(thread)
+			WriteResponse(w, body, e.Code)
+			return
+		}
+		body, _ = json.Marshal(e)
+		WriteResponse(w, body, e.Code)
+		return
+	}
+
+	body, _ = json.Marshal(thread)
+	WriteResponse(w, body, http.StatusCreated)
 }
 
 func (handlers *Handlers) GetThreads(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	slug := vars["slug"]
 
-	threads, _ := handlers.usecases.GetThreadsByForum(slug)
-
+	threads, err := handlers.usecases.GetThreadsByForum(slug)
+	if err != nil {
+		body, _ := json.Marshal(err)
+		WriteResponse(w, body, err.Code)
+		return
+	}
 	fmt.Println(threads)
 
 	body, _ := json.Marshal(threads)
 
-	w.Header().Set("Content-Type", "application/json")
-	w.Write(body)
+	WriteResponse(w, body, http.StatusOK)
 }
 
 func (handlers *Handlers) ChangeThread(w http.ResponseWriter, r *http.Request) {

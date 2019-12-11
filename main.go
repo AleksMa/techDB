@@ -48,7 +48,7 @@ func main() {
 
 	//TODO: PUT/UPDATE POST, GET USERS
 
-	r.HandleFunc("/forum/{slug}/create", api.PostThread).Methods("POST")
+	r.HandleFunc("/forum/{slug}/create", api.CreateThread).Methods("POST")
 	r.HandleFunc("/forum/{slug}/details", api.GetForum).Methods("GET")
 	r.HandleFunc("/forum/{slug}/threads", api.GetThreads).Methods("GET")
 	r.HandleFunc("/forum/{slug}/users", api.GetUsers).Methods("GET")

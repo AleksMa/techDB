@@ -40,7 +40,7 @@ CREATE TABLE threads
     forumID  BIGINT    NOT NULL,
     message  TEXT,
 
-    slug     TEXT,
+    slug     CITEXT UNIQUE,
     title    TEXT,
 
     authorID BIGINT    NOT NULL,
