@@ -49,7 +49,6 @@ func (handlers *Handlers) GetUser(w http.ResponseWriter, r *http.Request) {
 	nickname := vars["nickname"]
 
 	user, err := handlers.usecases.GetUserByNickname(nickname)
-
 	if err != nil {
 		body, _ := json.Marshal(err)
 		WriteResponse(w, body, err.Code)

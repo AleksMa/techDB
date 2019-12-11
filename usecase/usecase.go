@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"github.com/AleksMa/techDB/models"
 	"github.com/AleksMa/techDB/repository"
-	"net/http"
 	"time"
 )
 
@@ -15,6 +14,7 @@ type UseCase interface {
 
 	PutForum(forum *models.Forum) (models.Forum, *models.Error)
 	GetForumBySlug(slug string) (models.Forum, *models.Error)
+	GetForumByID(id int64) (models.Forum, *models.Error)
 
 	PutThread(newThread *models.Thread) error
 	GetThreadsByForum(slug string) (models.Threads, error)
@@ -46,53 +46,11 @@ func NewUseCase(repo repository.Repo) UseCase {
 	}
 }
 
-func (u *useCase) PutForum(forum *models.Forum) (models.Forum, *models.Error) {
-	fmt.Println(forum)
-	dupForum, err := u.GetForumBySlug(forum.Slug)
-	if err == nil || err.Code != http.StatusNotFound {
-		fmt.Println("DUP: ", dupForum)
-		return dupForum, models.NewError(http.StatusConflict, "forum already created")
-	}
-
-	user, err := u.GetUserByNickname(forum.Owner)
-	if err != nil {
-		if err.Code == http.StatusNotFound {
-			return *forum, models.NewError(http.StatusNotFound, "No user found: "+err.Message)
-		}
-		return *forum, models.NewError(http.StatusInternalServerError, err.Message)
-	}
-
-	forum.OwnerID = user.ID
-	forum.Owner = user.Nickname
-	_, err = u.repository.PutForum(forum)
-
-	if err != nil {
-		return *forum, err
-	}
-	return *forum, nil
-}
-
-func (u *useCase) GetForumBySlug(slug string) (models.Forum, *models.Error) {
-	forum, err := u.repository.GetForumBySlug(slug)
-	if err != nil {
-		return forum, err
-	}
-
-	fmt.Println(forum)
-	owner, err := u.repository.GetUserByID(forum.OwnerID)
-	if err != nil {
-		return forum, err
-	}
-
-	forum.Owner = owner.Nickname
-	return forum, nil
-}
-
 func (u *useCase) PutThread(newThread *models.Thread) error {
 	fmt.Println(newThread)
 	//TODO: contains check
 	user, _ := u.repository.GetUserByNickname(newThread.Author)
-	forum, _ := u.repository.GetForumBySlug(newThread.Forum)
+	forum, _ := u.GetForumBySlug(newThread.Forum)
 
 	fmt.Println(user, forum)
 
@@ -102,7 +60,7 @@ func (u *useCase) PutThread(newThread *models.Thread) error {
 }
 
 func (u *useCase) GetThreadsByForum(slug string) (models.Threads, error) {
-	forum, _ := u.repository.GetForumBySlug(slug)
+	forum, _ := u.GetForumBySlug(slug)
 
 	threads, _ := u.repository.GetThreadsByForum(forum.ID)
 	for i, _ := range threads {
@@ -118,7 +76,7 @@ func (u *useCase) GetThreadBySlug(slug string) (models.Thread, error) {
 	fmt.Println(thread, ownerID)
 	owner, _ := u.repository.GetUserByID(ownerID)
 	thread.Author = owner.Nickname
-	forum, _, _ := u.repository.GetForumByID(thread.ForumID)
+	forum, _ := u.GetForumByID(thread.ForumID)
 	thread.Forum = forum.Slug
 	return thread, nil
 }
@@ -128,7 +86,7 @@ func (u *useCase) GetThreadByID(id int64) (models.Thread, error) {
 	fmt.Println(thread, ownerID)
 	owner, _ := u.repository.GetUserByID(ownerID)
 	thread.Author = owner.Nickname
-	forum, _, _ := u.repository.GetForumByID(thread.ForumID)
+	forum, _ := u.GetForumByID(thread.ForumID)
 	thread.Forum = forum.Slug
 	return thread, nil
 }
@@ -244,7 +202,7 @@ func (u *useCase) GetPostFull(id int64) (models.PostFull, error) {
 
 	postFull.Author, _ = u.repository.GetUserByID(postFull.Post.AuthorID)
 	postFull.Thread, _, _ = u.repository.GetThreadByID(postFull.Post.Thread)
-	postFull.Forum, _, _ = u.repository.GetForumByID(postFull.Post.ForumID)
+	postFull.Forum, _ = u.GetForumByID(postFull.Post.ForumID)
 
 	return postFull, nil
 }
