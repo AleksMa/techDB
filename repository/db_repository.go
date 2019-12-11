@@ -304,10 +304,11 @@ func (store *DBStore) GetPostsByThreadID(threadID int64) (models.Posts, error) {
 	return posts, nil
 }
 
+/*
 func (store *DBStore) GetPostsByThreadSlug(slug int64) (models.Posts, error) {
 	posts := models.Posts{}
 
-	selectStr := `SELECT ID, created, forumid, isEdited, message, parentid, authorid, threadid 
+	selectStr := `SELECT ID, created, forumid, isEdited, message, parentid, authorid, threadid
 			FROM posts WHERE slug = $1`
 	rows, err := store.DB.Query(selectStr, slug)
 	if err != nil {
@@ -331,7 +332,7 @@ func (store *DBStore) GetPostsByThreadSlug(slug int64) (models.Posts, error) {
 	}
 
 	return posts, nil
-}
+}*/
 
 func (store *DBStore) PutVote(vote *models.Vote) (uint64, error) {
 	fmt.Println(vote)
@@ -348,4 +349,61 @@ func (store *DBStore) PutVote(vote *models.Vote) (uint64, error) {
 	}
 
 	return ID, nil
+}
+
+func (store *DBStore) GetUsersByForum(forumID int64) (models.Users, error) {
+	users := models.Users{}
+
+	selectStr := "SELECT DISTINCT authorid FROM posts WHERE forumID = $1 UNION SELECT authorid FROM threads WHERE forumID = $1"
+	rows, err := store.DB.Query(selectStr, forumID)
+	if err != nil {
+		fmt.Println(err)
+		return users, models.NewServerError(err, http.StatusInternalServerError, "Can not get all users: "+err.Error())
+	}
+
+	for rows.Next() {
+		user := &models.User{}
+		err := rows.Scan(&user.ID)
+		if err != nil {
+			return users, models.NewServerError(err, http.StatusInternalServerError, "Can not get all users: "+err.Error())
+		}
+		users = append(users, user)
+	}
+
+	rows.Close()
+
+	if err != nil {
+		return users, models.NewServerError(err, http.StatusInternalServerError, "Can not get user: "+err.Error())
+	}
+
+	return users, nil
+}
+
+func (store *DBStore) ChangePost(post *models.Post) error {
+	fmt.Println(post)
+
+	insertQuery := `UPDATE posts SET message=$1, isedited=$2 WHERE id=$2`
+	_, err := store.DB.Exec(insertQuery, post.Message, true, post.ID)
+
+	if err != nil {
+		return models.NewServerError(err, http.StatusInternalServerError, "Can not put post: "+err.Error())
+	}
+
+	return nil
+}
+
+func (store *DBStore) GetPost(id int64) (models.Post, error) {
+	post := &models.Post{}
+
+	selectStr := "SELECT ID, created, forumid, isEdited, message, parentid, authorid, threadid FROM posts WHERE id = $1"
+	row := store.DB.QueryRow(selectStr, id)
+
+	err := row.Scan(&post.ID, &post.Created, &post.ForumID, &post.IsEdited,
+		&post.Message, &post.Parent, &post.AuthorID, &post.Thread)
+
+	if err != nil {
+		return *post, models.NewServerError(err, http.StatusInternalServerError, "Can not get user: "+err.Error())
+	}
+
+	return *post, nil
 }

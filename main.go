@@ -34,6 +34,7 @@ func main() {
 	r.HandleFunc("/forum/{slug}/create", api.PostThread).Methods("POST")
 	r.HandleFunc("/forum/{slug}/details", api.GetForum).Methods("GET")
 	r.HandleFunc("/forum/{slug}/threads", api.GetThreads).Methods("GET")
+	r.HandleFunc("/forum/{slug}/users", api.GetUsers).Methods("GET")
 
 	r.HandleFunc("/thread/{slug_or_id}/create", api.PutPost).Methods("POST")
 	r.HandleFunc("/thread/{slug_or_id}/details", api.GetThread).Methods("GET")
@@ -44,6 +45,9 @@ func main() {
 	r.HandleFunc("/user/{nickname}/create", api.PostUser).Methods("POST")
 	r.HandleFunc("/user/{nickname}/profile", api.GetUser).Methods("GET")
 	r.HandleFunc("/user/{nickname}/profile", api.ChangeUser).Methods("POST")
+
+	r.HandleFunc("/post/{id}/details", api.GetPostFull).Methods("GET")
+	r.HandleFunc("/post/{id}/details", api.ChangePost).Methods("POST")
 
 	r.HandleFunc("/service/status", api.GetStatus).Methods("GET")
 	r.HandleFunc("/service/clear", api.Clear).Methods("POST")

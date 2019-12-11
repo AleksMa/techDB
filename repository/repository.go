@@ -20,6 +20,9 @@ type Repo interface {
 	UpdateThreadWithID(thread *models.Thread) error
 	UpdateThreadWithSlug(thread *models.Thread) error
 	GetPostsByThreadID(threadID int64) (models.Posts, error)
-	GetPostsByThreadSlug(slug int64) (models.Posts, error)
+	//GetPostsByThreadSlug(slug int64) (models.Posts, error)
 	PutVote(vote *models.Vote) (uint64, error)
+	GetUsersByForum(forumID int64) (models.Users, error)
+	ChangePost(post *models.Post) error
+	GetPost(ID int64) (models.Post, error)
 }

@@ -264,3 +264,54 @@ func (handlers *Handlers) Vote(w http.ResponseWriter, r *http.Request) {
 		handlers.usecases.PutVoteWithSlug(&vote, slug_or_id)
 	}
 }
+
+func (handlers *Handlers) GetUsers(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	slug := vars["slug"]
+
+	users, _ := handlers.usecases.GetUsersByForum(slug)
+
+	fmt.Println(users)
+
+	body, _ := json.Marshal(users)
+
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(body)
+}
+
+func (handlers *Handlers) ChangePost(w http.ResponseWriter, r *http.Request) {
+	var post models.Post
+
+	defer r.Body.Close()
+	body, _ := ioutil.ReadAll(r.Body)
+
+	fmt.Println(string(body))
+	vars := mux.Vars(r)
+	idStr := vars["id"]
+
+	id, err := strconv.Atoi(idStr)
+
+	err = json.Unmarshal(body, &post)
+	if err != nil {
+
+	}
+	post.ID = int64(id)
+
+	handlers.usecases.ChangePost(&post)
+}
+
+func (handlers *Handlers) GetPostFull(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	idStr := vars["id"]
+
+	id, _ := strconv.Atoi(idStr)
+
+	postFull, _ := handlers.usecases.GetPostFull(int64(id))
+
+	fmt.Println(postFull)
+
+	body, _ := json.Marshal(postFull)
+
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(body)
+}

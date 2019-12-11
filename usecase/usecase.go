@@ -27,6 +27,9 @@ type UseCase interface {
 	GetPostsByThreadSlug(slug string) (models.Posts, error)
 	PutVote(vote *models.Vote) (models.Vote, error)
 	PutVoteWithSlug(vote *models.Vote, slug string) (models.Vote, error)
+	GetUsersByForum(slug string) (models.Users, error)
+	ChangePost(post *models.Post) error
+	GetPostFull(id int64) (models.PostFull, error)
 }
 
 type useCase struct {
@@ -235,4 +238,41 @@ func (u *useCase) PutVoteWithSlug(vote *models.Vote, slug string) (models.Vote, 
 	u.repository.PutVote(vote)
 	//TODO: error check
 	return *vote, nil
+}
+
+func (u *useCase) GetUsersByForum(slug string) (models.Users, error) {
+	forum, _, _ := u.repository.GetForumBySlug(slug)
+
+	users, _ := u.repository.GetUsersByForum(forum.ID)
+	fmt.Println(users)
+	for i, _ := range users {
+		user, _ := u.repository.GetUserByID(users[i].ID)
+		users[i].Nickname = user.Nickname
+		users[i].Fullname = user.Fullname
+		users[i].About = user.About
+		users[i].Email = user.Email
+	}
+	return users, nil
+}
+
+func (u *useCase) ChangePost(post *models.Post) error {
+	fmt.Println(post)
+	//TODO: contains check
+	u.repository.ChangePost(post)
+	//TODO: error check
+	return nil
+}
+
+func (u *useCase) GetPostFull(id int64) (models.PostFull, error) {
+	var postFull models.PostFull
+	var err error
+	postFull.Post, err = u.repository.GetPost(id)
+	fmt.Println(postFull)
+	fmt.Println(err)
+
+	postFull.Author, err = u.repository.GetUserByID(postFull.Post.AuthorID)
+	postFull.Thread, _, err = u.repository.GetThreadByID(postFull.Post.Thread)
+	postFull.Forum, _, err = u.repository.GetForumByID(postFull.Post.ForumID)
+
+	return postFull, nil
 }
