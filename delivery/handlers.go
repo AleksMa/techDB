@@ -81,6 +81,8 @@ func (handlers *Handlers) GetUser(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	nickname := vars["nickname"]
 
+	fmt.Println("/getuser", nickname)
+
 	user, _ := handlers.usecases.GetUserByNickname(nickname)
 
 	body, _ := json.Marshal(user)

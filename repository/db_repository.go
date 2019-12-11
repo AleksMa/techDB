@@ -60,6 +60,7 @@ func (store *DBStore) PutUser(user *models.User) (uint64, error) {
 
 	err := rows.Scan(&ID)
 	if err != nil {
+		fmt.Println(err)
 		return 0, models.NewServerError(err, http.StatusInternalServerError, "Can not put user: "+err.Error())
 	}
 
@@ -75,6 +76,7 @@ func (store *DBStore) GetUserByNickname(nickname string) (models.User, error) {
 	err := row.Scan(&user.ID, &user.Nickname, &user.About, &user.Email, &user.Fullname)
 
 	if err != nil {
+		fmt.Println(err)
 		return *user, models.NewServerError(err, http.StatusInternalServerError, "Can not get user: "+err.Error())
 	}
 

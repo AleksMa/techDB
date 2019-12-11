@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"github.com/AleksMa/techDB/delivery"
+	"github.com/AleksMa/techDB/models"
 	"github.com/AleksMa/techDB/repository"
 	useCase "github.com/AleksMa/techDB/usecase"
 	"github.com/gorilla/mux"
@@ -20,11 +21,17 @@ func main() {
 	//layout := "2006-01-02 00:00:00 +0000 UTC"
 
 	dbinfo := fmt.Sprintf("host=%s user=%s password=%s dbname=%s sslmode=disable",
-		"localhost", "techdbuser", "1234", "techdb")
+		"localhost", "docker", "docker", "docker")
 
 	db, err := sql.Open("postgres", dbinfo)
 	usecases := useCase.NewUseCase(repository.NewDBStore(db))
 	api := delivery.NewHandlers(usecases)
+
+	_, err = db.Exec(models.InitScript)
+
+	if err != nil {
+		fmt.Println(err)
+	}
 
 	r := mux.NewRouter()
 	r.HandleFunc("/forum/create", api.PostForum).Methods("POST")
