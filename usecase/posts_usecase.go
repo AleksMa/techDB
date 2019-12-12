@@ -140,6 +140,41 @@ func (u *useCase) PutVoteWithSlug(vote *models.Vote, slug string) (models.Thread
 	return thread, nil
 }
 
+func (u *useCase) GetPostFull(id int64, fields []string) (models.PostFull, *models.Error) {
+	var postFull models.PostFull
+	//var err error
+	post, err := u.repository.GetPost(id)
+	if err != nil {
+		return postFull, err
+	}
+	postFull.Post = &post
+	fmt.Println(postFull)
+	fmt.Println(err)
+
+	author, _ := u.GetUserByID(postFull.Post.AuthorID)
+	forum, _ := u.GetForumByID(postFull.Post.ForumID)
+
+	postFull.Post.Author = author.Nickname
+	postFull.Post.Forum = forum.Slug
+
+	for _, field := range fields {
+		if field == "user" {
+			postFull.Author = &author
+		}
+
+		if field == "forum" {
+			postFull.Forum = &forum
+		}
+
+		if field == "thread" {
+			thread, _ := u.GetThreadByID(postFull.Post.Thread)
+			postFull.Thread = &thread
+		}
+	}
+
+	return postFull, nil
+}
+
 func (u *useCase) GetPostsByThreadID(id int64) (models.Posts, error) {
 	thread, _ := u.repository.GetThreadByID(id)
 
@@ -170,18 +205,4 @@ func (u *useCase) ChangePost(post *models.Post) error {
 	u.repository.ChangePost(post)
 	//TODO: error check
 	return nil
-}
-
-func (u *useCase) GetPostFull(id int64) (models.PostFull, error) {
-	var postFull models.PostFull
-	var err error
-	postFull.Post, err = u.repository.GetPost(id)
-	fmt.Println(postFull)
-	fmt.Println(err)
-
-	postFull.Author, _ = u.repository.GetUserByID(postFull.Post.AuthorID)
-	postFull.Thread, _ = u.repository.GetThreadByID(postFull.Post.Thread)
-	postFull.Forum, _ = u.GetForumByID(postFull.Post.ForumID)
-
-	return postFull, nil
 }

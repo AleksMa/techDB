@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -77,14 +78,20 @@ func (handlers *Handlers) GetPostFull(w http.ResponseWriter, r *http.Request) {
 
 	id, _ := strconv.Atoi(idStr)
 
-	postFull, _ := handlers.usecases.GetPostFull(int64(id))
+	fields := strings.Split(r.URL.Query().Get("related"), ",")
+	fmt.Println("RELATED???:", fields)
+
+	postFull, err := handlers.usecases.GetPostFull(int64(id), fields)
+	if err != nil {
+		body, _ := json.Marshal(err)
+		WriteResponse(w, body, err.Code)
+		return
+	}
 
 	fmt.Println(postFull)
 
 	body, _ := json.Marshal(postFull)
-
-	w.Header().Set("Content-Type", "application/json")
-	w.Write(body)
+	WriteResponse(w, body, http.StatusOK)
 }
 
 func (handlers *Handlers) GetPosts(w http.ResponseWriter, r *http.Request) {

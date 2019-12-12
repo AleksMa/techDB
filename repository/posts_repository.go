@@ -35,6 +35,9 @@ func (store *DBStore) GetPost(id int64) (models.Post, *models.Error) {
 		&post.Message, &post.Parent, &post.AuthorID, &post.Thread)
 
 	if err != nil {
+		if err == pgx.ErrNoRows {
+			return *post, models.NewError(http.StatusNotFound, err.Error())
+		}
 		return *post, models.NewError(http.StatusInternalServerError, err.Error())
 	}
 

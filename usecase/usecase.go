@@ -25,6 +25,7 @@ type UseCase interface {
 
 	PutPost(post *models.Post) (*models.Post, *models.Error)
 	PutPostWithSlug(post *models.Post, threadSlug string) (*models.Post, *models.Error)
+	GetPostFull(id int64, fields []string) (models.PostFull, *models.Error)
 
 	PutVote(vote *models.Vote) (models.Thread, *models.Error)
 	PutVoteWithSlug(vote *models.Vote, slug string) (models.Thread, *models.Error)
@@ -34,7 +35,6 @@ type UseCase interface {
 	GetPostsByThreadID(id int64) (models.Posts, error)
 	GetPostsByThreadSlug(slug string) (models.Posts, error)
 	ChangePost(post *models.Post) error
-	GetPostFull(id int64) (models.PostFull, error)
 
 	GetUsersByForum(slug string) (models.Users, error)
 }
