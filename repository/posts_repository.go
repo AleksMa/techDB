@@ -12,7 +12,7 @@ func (store *DBStore) PutPost(post *models.Post) (uint64, *models.Error) {
 	var ID uint64
 
 	insertQuery := `INSERT INTO posts (created, forumid, isedited, message, parentid, authorid, threadid, parents) 
-		VALUES ($1, $2, $3, $4, $5, $6, $7, (SELECT parents FROM posts WHERE posts.id = $5)) RETURNING id`
+		VALUES ($1, $2, $3, $4, $5, $6, $7, (SELECT parents FROM posts WHERE posts.id = $5) || (SELECT currval('posts_id_seq'))) RETURNING id`
 	rows := store.DB.QueryRow(insertQuery,
 		post.Created, post.ForumID, post.IsEdited, post.Message, post.Parent, post.AuthorID, post.Thread)
 

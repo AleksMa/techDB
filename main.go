@@ -44,7 +44,7 @@ func main() {
 		fmt.Println(err)
 	}
 
-	r := mux.NewRouter()
+	r := mux.NewRouter().PathPrefix("/api").Subrouter()
 	r.HandleFunc("/forum/create", api.CreateForum).Methods("POST")
 
 	r.HandleFunc("/forum/{slug}/create", api.CreateThread).Methods("POST")
