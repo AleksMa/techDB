@@ -6,7 +6,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 # update all
 RUN apt-get update
 
-ENV PGVER 10.10
+ENV PGVER 10
 # using package install
 RUN apt-get install -y postgresql-$PGVER wget git
 

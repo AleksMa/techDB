@@ -8,21 +8,51 @@ import (
 	"strconv"
 )
 
-func (store *DBStore) PutUser(user *models.User) (uint64, *models.Error) {
+func (store *DBStore) PutUser(user *models.User) (models.Users, uint64, *models.Error) {
+	tx, _ := store.DB.Begin()
+	defer tx.Rollback()
+
+	users := models.Users{}
+
+	selectStr := "SELECT DISTINCT nickname, about, email, fullname FROM users WHERE nickname=$1 OR email=$2"
+
+	rows, err := tx.Query(selectStr, user.Nickname, user.Email)
+	//if err != nil {
+	//	fmt.Println(err)
+	//	return users, models.NewError(http.StatusInternalServerError, err.Error())
+	//}
+
+	for rows.Next() {
+		user := &models.User{}
+		rows.Scan(&user.Nickname, &user.About, &user.Email, &user.Fullname)
+		//if err != nil {
+		//	return users, models.NewError(http.StatusInternalServerError, err.Error())
+		//}
+		users = append(users, user)
+	}
+
+	rows.Close()
+
+	if users != nil && len(users) != 0 {
+		return users, 0, nil
+	}
+
 	fmt.Println(user)
 	var ID uint64
 
 	insertQuery := `INSERT INTO users (nickname, about, email, fullname) VALUES ($1, $2, $3, $4) RETURNING id`
-	rows := store.DB.QueryRow(insertQuery,
+	row := tx.QueryRow(insertQuery,
 		user.Nickname, user.About, user.Email, user.Fullname)
 
-	err := rows.Scan(&ID)
+	err = row.Scan(&ID)
 	if err != nil {
 		fmt.Println(err)
-		return 0, models.NewError(http.StatusInternalServerError, err.Error())
+		return nil, 0, models.NewError(http.StatusInternalServerError, err.Error())
 	}
 
-	return ID, nil
+	tx.Commit()
+
+	return nil, ID, nil
 }
 
 func (store *DBStore) GetDupUsers(user *models.User) (models.Users, *models.Error) {
