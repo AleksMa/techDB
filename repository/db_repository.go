@@ -11,6 +11,7 @@ type Repo interface {
 	GetUserByID(id int64) (models.User, *models.Error)
 	GetUserByNickname(nickname string) (models.User, *models.Error)
 	ChangeUser(user *models.User) *models.Error
+	GetUsersByForum(forumID int64, params models.UserParams) (models.Users, *models.Error)
 
 	PutForum(forum *models.Forum) (uint64, *models.Error)
 	GetForumBySlug(slug string) (models.Forum, *models.Error)
@@ -31,7 +32,6 @@ type Repo interface {
 	PutVote(vote *models.Vote) (uint64, *models.Error)
 
 	GetPostsByThreadID(threadID int64) (models.Posts, error)
-	GetUsersByForum(forumID int64) (models.Users, error)
 
 	GetStatus() (models.Status, error)
 	ReloadDB() error

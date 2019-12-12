@@ -52,10 +52,17 @@ func (u *useCase) ChangeUser(userUpd *models.UpdateUserFields, nickname string) 
 	return tempUser, err
 }
 
-func (u *useCase) GetUsersByForum(slug string) (models.Users, error) {
-	forum, _ := u.repository.GetForumBySlug(slug)
+func (u *useCase) GetUsersByForum(slug string, params models.UserParams) (models.Users, *models.Error) {
+	forum, e := u.repository.GetForumBySlug(slug)
+	if e != nil {
+		return nil, e
+	}
 
-	users, _ := u.repository.GetUsersByForum(forum.ID)
+	users, e := u.repository.GetUsersByForum(forum.ID, params)
+	if e != nil {
+		return nil, e
+	}
+
 	fmt.Println(users)
 	for i, _ := range users {
 		user, _ := u.repository.GetUserByID(users[i].ID)

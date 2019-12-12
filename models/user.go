@@ -16,6 +16,12 @@ type User struct {
 
 type Users []*User
 
+type UserParams struct {
+	Limit int
+	Since string
+	Desc  bool
+}
+
 type UpdateUserFields struct {
 	About    *string `json:"about"`
 	Email    *string `json:"email"`

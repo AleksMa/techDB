@@ -5,6 +5,7 @@ import (
 	"github.com/AleksMa/techDB/models"
 	"github.com/jackc/pgx"
 	"net/http"
+	"strconv"
 )
 
 func (store *DBStore) PutUser(user *models.User) (uint64, *models.Error) {
@@ -107,21 +108,55 @@ func (store *DBStore) ChangeUser(user *models.User) *models.Error {
 	return nil
 }
 
-func (store *DBStore) GetUsersByForum(forumID int64) (models.Users, error) {
+func (store *DBStore) GetUsersByForum(forumID int64, params models.UserParams) (models.Users, *models.Error) {
 	users := models.Users{}
 
-	selectStr := "SELECT DISTINCT authorid FROM posts WHERE forumID = $1 UNION SELECT authorid FROM threads WHERE forumID = $1"
-	rows, err := store.DB.Query(selectStr, forumID)
+	fmt.Println("PARAMS: ", params)
+	args := 1
+	curParams := []interface{}{forumID}
+
+	selectStr := `SELECT DISTINCT ON (nickname COLLATE "C") id, nickname, fullname, about, email FROM users
+WHERE id IN (SELECT authorid FROM posts WHERE forumID = $1 
+UNION 
+SELECT authorid FROM threads WHERE forumID = $1)`
+
+	if params.Since != "" {
+		selectStr += ` AND nickname COLLATE "C" `
+		if params.Desc {
+			selectStr += " <"
+		} else {
+			selectStr += " >"
+		}
+		selectStr += " $2"
+		args++
+		curParams = append(curParams, params.Since)
+	}
+	selectStr += ` ORDER BY (nickname COLLATE "C")`
+	if params.Desc {
+		selectStr += " DESC"
+	}
+	if params.Limit != -1 {
+		selectStr += " LIMIT $"
+		selectStr += strconv.Itoa(args + 1)
+		args++
+		curParams = append(curParams, params.Limit)
+	}
+	selectStr += ";"
+
+	fmt.Println("SELET_STR: ", selectStr)
+	fmt.Println("CUR_PARAMS: ", curParams)
+
+	rows, err := store.DB.Query(selectStr, curParams...)
 	if err != nil {
 		fmt.Println(err)
-		return users, models.NewServerError(err, http.StatusInternalServerError, "Can not get all users: "+err.Error())
+		return users, models.NewError(http.StatusInternalServerError, err.Error())
 	}
 
 	for rows.Next() {
 		user := &models.User{}
-		err := rows.Scan(&user.ID)
+		err := rows.Scan(&user.ID, &user.Nickname, &user.Fullname, &user.About, &user.Email)
 		if err != nil {
-			return users, models.NewServerError(err, http.StatusInternalServerError, "Can not get all users: "+err.Error())
+			return users, models.NewError(http.StatusInternalServerError, err.Error())
 		}
 		users = append(users, user)
 	}
@@ -129,7 +164,7 @@ func (store *DBStore) GetUsersByForum(forumID int64) (models.Users, error) {
 	rows.Close()
 
 	if err != nil {
-		return users, models.NewServerError(err, http.StatusInternalServerError, "Can not get user: "+err.Error())
+		return users, models.NewError(http.StatusInternalServerError, err.Error())
 	}
 
 	return users, nil

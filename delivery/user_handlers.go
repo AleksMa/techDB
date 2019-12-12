@@ -7,6 +7,7 @@ import (
 	"github.com/gorilla/mux"
 	"io/ioutil"
 	"net/http"
+	"strconv"
 )
 
 func (handlers *Handlers) CreateUser(w http.ResponseWriter, r *http.Request) {
@@ -93,12 +94,28 @@ func (handlers *Handlers) GetUsers(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	slug := vars["slug"]
 
-	users, _ := handlers.usecases.GetUsersByForum(slug)
+	query := r.URL.Query()
+	var params models.UserParams
+	var err error
+
+	params.Limit, err = strconv.Atoi(query.Get("limit"))
+	if err != nil {
+		params.Limit = -1
+	}
+	params.Since = query.Get("since")
+	fmt.Println("SINCE: ", params.Since)
+	params.Desc = query.Get("desc") == "true"
+
+	users, e := handlers.usecases.GetUsersByForum(slug, params)
+	if e != nil {
+		body, _ := json.Marshal(e)
+		WriteResponse(w, body, e.Code)
+		return
+	}
 
 	fmt.Println(users)
 
 	body, _ := json.Marshal(users)
 
-	w.Header().Set("Content-Type", "application/json")
-	w.Write(body)
+	WriteResponse(w, body, http.StatusOK)
 }

@@ -9,6 +9,7 @@ type UseCase interface {
 	PutUser(user *models.User) (models.Users, *models.Error)
 	GetUserByNickname(nickname string) (models.User, *models.Error)
 	ChangeUser(userUpd *models.UpdateUserFields, nickname string) (models.User, *models.Error)
+	GetUsersByForum(slug string, params models.UserParams) (models.Users, *models.Error)
 
 	PutForum(forum *models.Forum) (models.Forum, *models.Error)
 	GetForumBySlug(slug string) (models.Forum, *models.Error)
@@ -33,8 +34,6 @@ type UseCase interface {
 
 	GetPostsByThreadID(id int64) (models.Posts, error)
 	GetPostsByThreadSlug(slug string) (models.Posts, error)
-
-	GetUsersByForum(slug string) (models.Users, error)
 
 	GetStatus() (models.Status, error)
 	RemoveAllData() error

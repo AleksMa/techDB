@@ -64,8 +64,6 @@ func (handlers *Handlers) GetThreads(w http.ResponseWriter, r *http.Request) {
 	params.Since, err = time.Parse(time.RFC3339Nano, query.Get("since"))
 	if err != nil {
 		params.Since = time.Time{}
-	} else {
-		//params.Since = params.Since.Add(time.Hour * 3)
 	}
 	params.Desc = query.Get("desc") == "true"
 
