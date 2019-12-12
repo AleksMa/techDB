@@ -7,7 +7,7 @@ import (
 )
 
 type Repo interface {
-	PutUser(user *models.User) (models.Users, uint64, *models.Error)
+	PutUser(user *models.User) (uint64, *models.Error)
 	GetDupUsers(user *models.User) (models.Users, *models.Error)
 	GetUserByID(id int64) (models.User, *models.Error)
 	GetUserByNickname(nickname string) (models.User, *models.Error)

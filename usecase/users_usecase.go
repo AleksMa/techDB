@@ -12,14 +12,14 @@ func (u *useCase) PutUser(user *models.User) (models.Users, *models.Error) {
 		return nil, err
 	}
 
-	/*	users, _ := u.repository.GetDupUsers(user)
-		if users != nil && len(users) != 0 {
-			fmt.Println("DUP: ", users)
-			return users, nil
-		}*/
+	users, _ := u.repository.GetDupUsers(user)
+	if users != nil && len(users) != 0 {
+		fmt.Println("DUP: ", users)
+		return users, nil
+	}
 
-	users, _, err := u.repository.PutUser(user)
-	return users, err
+	_, err := u.repository.PutUser(user)
+	return nil, err
 }
 
 func (u *useCase) GetUserByNickname(nickname string) (models.User, *models.Error) {

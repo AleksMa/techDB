@@ -31,7 +31,7 @@ func main() {
 			Port:     5432,
 			Database: "docker",
 		},
-		MaxConnections: 1,
+		MaxConnections: 50,
 	})
 
 	// db, err := sql.Open("postgres", dbinfo)

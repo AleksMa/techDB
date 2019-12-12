@@ -19,7 +19,7 @@ func (store *DBStore) PutUser(user *models.User) (uint64, *models.Error) {
 	err := rows.Scan(&ID)
 	if err != nil {
 		fmt.Println(err)
-		return 0, models.NewError(http.StatusInternalServerError, "INSERTERROR: "+err.Error())
+		return 0, models.NewError(http.StatusInternalServerError, err.Error())
 	}
 
 	return ID, nil
@@ -33,19 +33,23 @@ func (store *DBStore) GetDupUsers(user *models.User) (models.Users, *models.Erro
 	rows, err := store.DB.Query(selectStr, user.Nickname, user.Email)
 	if err != nil {
 		fmt.Println(err)
-		return users, models.NewError(http.StatusInternalServerError, "SELECTERROR: "+err.Error())
+		return users, models.NewError(http.StatusInternalServerError, err.Error())
 	}
 
 	for rows.Next() {
 		user := &models.User{}
 		err := rows.Scan(&user.Nickname, &user.About, &user.Email, &user.Fullname)
 		if err != nil {
-			return users, models.NewError(http.StatusInternalServerError, "SCANERROR: "+err.Error())
+			return users, models.NewError(http.StatusInternalServerError, err.Error())
 		}
 		users = append(users, user)
 	}
 
 	rows.Close()
+
+	if err != nil {
+		return users, models.NewError(http.StatusInternalServerError, err.Error())
+	}
 
 	return users, nil
 }
