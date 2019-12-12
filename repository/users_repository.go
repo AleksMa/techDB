@@ -34,6 +34,7 @@ func (store *DBStore) PutUser(user *models.User) (models.Users, uint64, *models.
 	rows.Close()
 
 	if users != nil && len(users) != 0 {
+		fmt.Println("DUP: ", users)
 		return users, 0, nil
 	}
 
@@ -47,7 +48,7 @@ func (store *DBStore) PutUser(user *models.User) (models.Users, uint64, *models.
 	err = row.Scan(&ID)
 	if err != nil {
 		fmt.Println(err)
-		return nil, 0, models.NewError(http.StatusInternalServerError, err.Error())
+		return nil, 0, models.NewError(http.StatusInternalServerError, "ERR WHILE INSERT"+err.Error())
 	}
 
 	tx.Commit()
