@@ -1,4 +1,4 @@
-FROM ubuntu:18.04.3
+FROM ubuntu:18.04
 LABEL maintainer="Alexey Mamaev"
 
 ENV DEBIAN_FRONTEND=noninteractive
