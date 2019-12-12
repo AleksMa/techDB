@@ -199,10 +199,43 @@ func (u *useCase) GetPostsByThreadSlug(slug string) (models.Posts, error) {
 	return posts, nil
 }
 
-func (u *useCase) ChangePost(post *models.Post) error {
+func (u *useCase) ChangePost(post *models.Post) (models.Post, *models.Error) {
+	tempPost, err := u.GetPostByID(post.ID)
+	if err != nil {
+		return tempPost, err
+	}
+
+	if post.Message == "" || post.Message == tempPost.Message {
+		return tempPost, nil
+	}
+
+	err = u.repository.ChangePost(post)
+	tempPost.IsEdited = true
+	tempPost.Message = post.Message
+
+	fmt.Println(tempPost)
+	return tempPost, err
+}
+
+func (u *useCase) GetPostByID(id int64) (models.Post, *models.Error) {
+	post, err := u.repository.GetPost(id)
+	if err != nil {
+		return post, err
+	}
+
 	fmt.Println(post)
-	//TODO: contains check
-	u.repository.ChangePost(post)
-	//TODO: error check
-	return nil
+
+	owner, err := u.GetUserByID(post.AuthorID)
+	if err != nil {
+		return post, err
+	}
+	post.Author = owner.Nickname
+
+	forum, err := u.repository.GetForumByID(post.ForumID)
+	if err != nil {
+		return post, err
+	}
+
+	post.Forum = forum.Slug
+	return post, nil
 }

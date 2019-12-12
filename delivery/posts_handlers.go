@@ -51,25 +51,35 @@ func (handlers *Handlers) CreatePost(w http.ResponseWriter, r *http.Request) {
 	WriteResponse(w, body, http.StatusCreated)
 }
 
-func (handlers *Handlers) ChangePost(w http.ResponseWriter, r *http.Request) {
-	var post models.Post
+func (handlers *Handlers) UpdatePost(w http.ResponseWriter, r *http.Request) {
+	var setPost, post models.Post
+	var e *models.Error
 
 	defer r.Body.Close()
 	body, _ := ioutil.ReadAll(r.Body)
 
-	fmt.Println(string(body))
 	vars := mux.Vars(r)
 	idStr := vars["id"]
 
 	id, err := strconv.Atoi(idStr)
 
-	err = json.Unmarshal(body, &post)
+	err = json.Unmarshal(body, &setPost)
 	if err != nil {
-
+		http.Error(w, "unmarshal error", http.StatusInternalServerError)
+		return
 	}
-	post.ID = int64(id)
 
-	handlers.usecases.ChangePost(&post)
+	setPost.ID = int64(id)
+
+	post, e = handlers.usecases.ChangePost(&setPost)
+	if e != nil {
+		body, _ = json.Marshal(e)
+		WriteResponse(w, body, e.Code)
+		return
+	}
+
+	body, _ = json.Marshal(post)
+	WriteResponse(w, body, http.StatusOK)
 }
 
 func (handlers *Handlers) GetPostFull(w http.ResponseWriter, r *http.Request) {

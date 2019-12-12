@@ -107,14 +107,14 @@ func (store *DBStore) PutVote(vote *models.Vote) (uint64, *models.Error) {
 	return ID, nil
 }
 
-func (store *DBStore) ChangePost(post *models.Post) error {
+func (store *DBStore) ChangePost(post *models.Post) *models.Error {
 	fmt.Println(post)
 
-	insertQuery := `UPDATE posts SET message=$1, isedited=$2 WHERE id=$2`
+	insertQuery := `UPDATE posts SET message=$1, isedited=$2 WHERE id=$3`
 	_, err := store.DB.Exec(insertQuery, post.Message, true, post.ID)
 
 	if err != nil {
-		return models.NewServerError(err, http.StatusInternalServerError, "Can not put post: "+err.Error())
+		return models.NewError(http.StatusInternalServerError, err.Error())
 	}
 
 	return nil

@@ -23,6 +23,7 @@ type Repo interface {
 
 	PutPost(post *models.Post) (uint64, *models.Error)
 	GetPost(ID int64) (models.Post, *models.Error)
+	ChangePost(post *models.Post) *models.Error
 
 	UpdateVote(vote *models.Vote) (int, *models.Error)
 	PutVote(vote *models.Vote) (uint64, *models.Error)
@@ -31,7 +32,6 @@ type Repo interface {
 	UpdateThreadWithSlug(thread *models.Thread) error
 	GetPostsByThreadID(threadID int64) (models.Posts, error)
 	GetUsersByForum(forumID int64) (models.Users, error)
-	ChangePost(post *models.Post) error
 
 	GetStatus() (models.Status, error)
 	ReloadDB() error

@@ -63,7 +63,7 @@ func main() {
 	r.HandleFunc("/user/{nickname}/profile", api.UpdateUser).Methods("POST")
 
 	r.HandleFunc("/post/{id}/details", api.GetPostFull).Methods("GET")
-	r.HandleFunc("/post/{id}/details", api.ChangePost).Methods("POST")
+	r.HandleFunc("/post/{id}/details", api.UpdatePost).Methods("POST")
 
 	r.HandleFunc("/service/status", api.GetStatus).Methods("GET")
 	r.HandleFunc("/service/clear", api.Clear).Methods("POST")
