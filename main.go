@@ -54,7 +54,7 @@ func main() {
 
 	r.HandleFunc("/thread/{slug_or_id}/create", api.CreatePost).Methods("POST")
 	r.HandleFunc("/thread/{slug_or_id}/details", api.GetThread).Methods("GET")
-	r.HandleFunc("/thread/{slug_or_id}/details", api.ChangeThread).Methods("POST")
+	r.HandleFunc("/thread/{slug_or_id}/details", api.UpdateThread).Methods("POST")
 	r.HandleFunc("/thread/{slug_or_id}/posts", api.GetPosts).Methods("GET")
 	r.HandleFunc("/thread/{slug_or_id}/vote", api.Vote).Methods("POST")
 

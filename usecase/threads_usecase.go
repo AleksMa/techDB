@@ -105,18 +105,54 @@ func (u *useCase) GetThreadsByForum(slug string, params models.ThreadParams) (mo
 	return threads, nil
 }
 
-func (u *useCase) UpdateThreadWithID(thread *models.Thread) (models.Thread, error) {
-	fmt.Println(thread)
-	//TODO: contains check
-	u.repository.UpdateThreadWithID(thread)
-	//TODO: error check
-	return *thread, nil
+func (u *useCase) UpdateThreadWithID(thread *models.Thread) (models.Thread, *models.Error) {
+	tempThread, err := u.GetThreadByID(thread.ID)
+	if err != nil {
+		return tempThread, err
+	}
+
+	if thread.Title == "" {
+		thread.Title = tempThread.Title
+	}
+
+	if thread.Message == "" {
+		thread.Message = tempThread.Message
+	}
+
+	thread.ID = tempThread.ID
+	err = u.repository.UpdateThreadWithID(thread)
+	if err != nil {
+		return tempThread, err
+	}
+	tempThread.Title = thread.Title
+	tempThread.Message = thread.Message
+
+	fmt.Println(tempThread)
+	return tempThread, err
 }
 
-func (u *useCase) UpdateThreadWithSlug(thread *models.Thread) (models.Thread, error) {
-	fmt.Println(thread)
-	//TODO: contains check
-	u.repository.UpdateThreadWithSlug(thread)
-	//TODO: error check
-	return *thread, nil
+func (u *useCase) UpdateThreadWithSlug(thread *models.Thread) (models.Thread, *models.Error) {
+	tempThread, err := u.GetThreadBySlug(thread.Slug)
+	if err != nil {
+		return tempThread, err
+	}
+
+	if thread.Title == "" {
+		thread.Title = tempThread.Title
+	}
+
+	if thread.Message == "" {
+		thread.Message = tempThread.Message
+	}
+
+	thread.ID = tempThread.ID
+	err = u.repository.UpdateThreadWithID(thread)
+	if err != nil {
+		return tempThread, err
+	}
+	tempThread.Title = thread.Title
+	tempThread.Message = thread.Message
+
+	fmt.Println(tempThread)
+	return tempThread, err
 }

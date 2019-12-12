@@ -20,6 +20,8 @@ type Repo interface {
 	GetThreadBySlug(slug string) (models.Thread, *models.Error)
 	GetThreadByID(id int64) (models.Thread, *models.Error)
 	GetThreadsByForum(forumID int64, params models.ThreadParams) (models.Threads, *models.Error)
+	UpdateThreadWithID(thread *models.Thread) *models.Error
+	UpdateThreadWithSlug(thread *models.Thread) *models.Error
 
 	PutPost(post *models.Post) (uint64, *models.Error)
 	GetPost(ID int64) (models.Post, *models.Error)
@@ -28,8 +30,6 @@ type Repo interface {
 	UpdateVote(vote *models.Vote) (int, *models.Error)
 	PutVote(vote *models.Vote) (uint64, *models.Error)
 
-	UpdateThreadWithID(thread *models.Thread) error
-	UpdateThreadWithSlug(thread *models.Thread) error
 	GetPostsByThreadID(threadID int64) (models.Posts, error)
 	GetUsersByForum(forumID int64) (models.Users, error)
 

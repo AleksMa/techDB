@@ -82,8 +82,33 @@ func (handlers *Handlers) GetThreads(w http.ResponseWriter, r *http.Request) {
 	WriteResponse(w, body, http.StatusOK)
 }
 
-func (handlers *Handlers) ChangeThread(w http.ResponseWriter, r *http.Request) {
+func (handlers *Handlers) GetThread(w http.ResponseWriter, r *http.Request) {
 	var thread models.Thread
+	var e *models.Error
+
+	vars := mux.Vars(r)
+	slug_or_id := vars["slug_or_id"]
+
+	if id, err := strconv.Atoi(slug_or_id); err == nil {
+		thread, e = handlers.usecases.GetThreadByID(int64(id))
+	} else {
+		thread, e = handlers.usecases.GetThreadBySlug(slug_or_id)
+	}
+	if e != nil {
+		body, _ := json.Marshal(e)
+		WriteResponse(w, body, e.Code)
+		return
+	}
+
+	fmt.Println(thread)
+
+	body, _ := json.Marshal(thread)
+	WriteResponse(w, body, http.StatusOK)
+}
+
+func (handlers *Handlers) UpdateThread(w http.ResponseWriter, r *http.Request) {
+	var thread models.Thread
+	var e *models.Error
 
 	defer r.Body.Close()
 	body, _ := ioutil.ReadAll(r.Body)
@@ -94,40 +119,25 @@ func (handlers *Handlers) ChangeThread(w http.ResponseWriter, r *http.Request) {
 
 	err := json.Unmarshal(body, &thread)
 	if err != nil {
-
+		http.Error(w, "unmarshal error", http.StatusInternalServerError)
+		return
 	}
 
 	if id, err := strconv.Atoi(slug_or_id); err == nil {
 		thread.ID = int64(id)
-		thread, _ = handlers.usecases.UpdateThreadWithID(&thread)
+		thread, e = handlers.usecases.UpdateThreadWithID(&thread)
 	} else {
 		thread.Slug = slug_or_id
-		thread, _ = handlers.usecases.UpdateThreadWithSlug(&thread)
+		thread, e = handlers.usecases.UpdateThreadWithSlug(&thread)
+	}
+	if e != nil {
+		body, _ = json.Marshal(e)
+		WriteResponse(w, body, e.Code)
+		return
 	}
 
 	fmt.Println(thread)
 
 	body, _ = json.Marshal(thread)
-
-	w.Header().Set("Content-Type", "application/json")
-	w.Write(body)
-}
-
-func (handlers *Handlers) GetThread(w http.ResponseWriter, r *http.Request) {
-	var thread models.Thread
-	vars := mux.Vars(r)
-	slug_or_id := vars["slug_or_id"]
-
-	if id, err := strconv.Atoi(slug_or_id); err == nil {
-		thread, _ = handlers.usecases.GetThreadByID(int64(id))
-	} else {
-		thread, _ = handlers.usecases.GetThreadBySlug(slug_or_id)
-	}
-
-	fmt.Println(thread)
-
-	body, _ := json.Marshal(thread)
-
-	w.Header().Set("Content-Type", "application/json")
-	w.Write(body)
+	WriteResponse(w, body, http.StatusOK)
 }

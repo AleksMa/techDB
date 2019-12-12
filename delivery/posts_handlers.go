@@ -14,6 +14,9 @@ import (
 
 func (handlers *Handlers) CreatePost(w http.ResponseWriter, r *http.Request) {
 	var posts models.Posts
+	var err error
+	var tempID int
+	id := -1
 
 	defer r.Body.Close()
 	body, _ := ioutil.ReadAll(r.Body)
@@ -22,10 +25,15 @@ func (handlers *Handlers) CreatePost(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	slug_or_id := vars["slug_or_id"]
 
-	err := json.Unmarshal(body, &posts)
+	err = json.Unmarshal(body, &posts)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
+	}
+
+	tempID, err = strconv.Atoi(slug_or_id)
+	if err == nil {
+		id = tempID
 	}
 
 	postsAdded := make(models.Posts, len(posts))
@@ -34,11 +42,25 @@ func (handlers *Handlers) CreatePost(w http.ResponseWriter, r *http.Request) {
 
 	for i, _ := range posts {
 		posts[i].Created = created
-		if id, err := strconv.Atoi(slug_or_id); err == nil {
+		if id != -1 {
 			posts[i].Thread = int64(id)
 			postsAdded[i], e = handlers.usecases.PutPost(posts[i])
 		} else {
 			postsAdded[i], e = handlers.usecases.PutPostWithSlug(posts[i], slug_or_id)
+		}
+		if e != nil {
+			body, _ = json.Marshal(e)
+			WriteResponse(w, body, e.Code)
+			return
+		}
+	}
+
+	if len(posts) == 0 {
+		//var thread models.Thread
+		if id != -1 {
+			_, e = handlers.usecases.GetThreadByID(int64(id))
+		} else {
+			_, e = handlers.usecases.GetThreadBySlug(slug_or_id)
 		}
 		if e != nil {
 			body, _ = json.Marshal(e)

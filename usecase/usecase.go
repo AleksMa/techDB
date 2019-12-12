@@ -19,9 +19,8 @@ type UseCase interface {
 	GetThreadByID(id int64) (models.Thread, *models.Error)
 	GetUserByID(id int64) (models.User, *models.Error)
 	GetThreadsByForum(slug string, params models.ThreadParams) (models.Threads, *models.Error)
-
-	GetStatus() (models.Status, error)
-	RemoveAllData() error
+	UpdateThreadWithID(thread *models.Thread) (models.Thread, *models.Error)
+	UpdateThreadWithSlug(thread *models.Thread) (models.Thread, *models.Error)
 
 	PutPost(post *models.Post) (*models.Post, *models.Error)
 	PutPostWithSlug(post *models.Post, threadSlug string) (*models.Post, *models.Error)
@@ -32,12 +31,13 @@ type UseCase interface {
 	PutVote(vote *models.Vote) (models.Thread, *models.Error)
 	PutVoteWithSlug(vote *models.Vote, slug string) (models.Thread, *models.Error)
 
-	UpdateThreadWithID(thread *models.Thread) (models.Thread, error)
-	UpdateThreadWithSlug(thread *models.Thread) (models.Thread, error)
 	GetPostsByThreadID(id int64) (models.Posts, error)
 	GetPostsByThreadSlug(slug string) (models.Posts, error)
 
 	GetUsersByForum(slug string) (models.Users, error)
+
+	GetStatus() (models.Status, error)
+	RemoveAllData() error
 }
 
 type useCase struct {

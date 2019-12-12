@@ -8,7 +8,7 @@ import (
 )
 
 func (store *DBStore) PutPost(post *models.Post) (uint64, *models.Error) {
-	fmt.Println(post)
+	fmt.Println("BLYA LIVE")
 	var ID uint64
 
 	insertQuery := `INSERT INTO posts (created, forumid, isedited, message, parentid, authorid, threadid) 

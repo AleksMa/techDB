@@ -127,7 +127,7 @@ func (store *DBStore) GetThreadByID(id int64) (models.Thread, *models.Error) {
 	return *thread, nil
 }
 
-func (store *DBStore) UpdateThreadWithSlug(thread *models.Thread) error {
+func (store *DBStore) UpdateThreadWithSlug(thread *models.Thread) *models.Error {
 	fmt.Println(thread)
 
 	insertQuery := `UPDATE threads SET message=$1, title=$2 WHERE slug=$3`
@@ -135,13 +135,13 @@ func (store *DBStore) UpdateThreadWithSlug(thread *models.Thread) error {
 		thread.Message, thread.Title, thread.Slug)
 
 	if err != nil {
-		return models.NewServerError(err, http.StatusInternalServerError, "Can not put thread: "+err.Error())
+		return models.NewError(http.StatusInternalServerError, err.Error())
 	}
 
 	return nil
 }
 
-func (store *DBStore) UpdateThreadWithID(thread *models.Thread) error {
+func (store *DBStore) UpdateThreadWithID(thread *models.Thread) *models.Error {
 	fmt.Println(thread)
 
 	insertQuery := `UPDATE threads SET message=$1, title=$2 WHERE id=$3`
@@ -149,7 +149,7 @@ func (store *DBStore) UpdateThreadWithID(thread *models.Thread) error {
 		thread.Message, thread.Title, thread.ID)
 
 	if err != nil {
-		return models.NewServerError(err, http.StatusInternalServerError, "Can not put thread: "+err.Error())
+		return models.NewError(http.StatusInternalServerError, err.Error())
 	}
 
 	return nil

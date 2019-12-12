@@ -12,16 +12,21 @@ func (u *useCase) PutPost(post *models.Post) (*models.Post, *models.Error) {
 	if err != nil {
 		return post, err
 	}
-	thread, _ := u.GetThreadByID(post.Thread)
+	thread, err := u.GetThreadByID(post.Thread)
+	if err != nil {
+		return post, err
+	}
 	post.Forum = thread.Forum
 	post.ForumID = thread.ForumID
 	post.AuthorID = user.ID
-	//fmt.Println(post, post.Forum)
 
 	if post.Parent != 0 {
-		_, err := u.repository.GetPost(post.Parent)
+		parentPost, err := u.GetPostByID(post.Parent)
 		if err != nil {
 			return post, models.NewError(http.StatusConflict, err.Message)
+		}
+		if post.Thread != parentPost.Thread {
+			return post, models.NewError(http.StatusConflict, "Cross-thread exception")
 		}
 	}
 
@@ -42,6 +47,9 @@ func (u *useCase) PutPostWithSlug(post *models.Post, threadSlug string) (*models
 		return post, err
 	}
 	thread, err := u.GetThreadBySlug(threadSlug)
+	if err != nil {
+		return post, err
+	}
 	fmt.Println("SLUG: ", threadSlug)
 	if err != nil {
 		return post, models.NewError(http.StatusConflict, err.Message)
@@ -51,20 +59,52 @@ func (u *useCase) PutPostWithSlug(post *models.Post, threadSlug string) (*models
 	post.ForumID = thread.ForumID
 	post.AuthorID = user.ID
 
+	fmt.Println("POST_PARENT: ", post.Parent)
+
 	if post.Parent != 0 {
-		_, err := u.repository.GetPost(post.Parent)
+		parentPost, err := u.GetPostByID(post.Parent)
 		if err != nil {
 			return post, models.NewError(http.StatusConflict, err.Message)
 		}
+		if post.Thread != parentPost.Thread {
+			return post, models.NewError(http.StatusConflict, "Cross-thread exception")
+		}
 	}
 
-	fmt.Println(post)
+	fmt.Printf("%#v", post)
 
 	id, err := u.repository.PutPost(post)
 	if err != nil {
 		return post, err
 	}
 	post.ID = int64(id)
+	return post, nil
+}
+
+func (u *useCase) GetPostByID(id int64) (models.Post, *models.Error) {
+
+	post, err := u.repository.GetPost(id)
+	if err != nil {
+		return post, err
+	}
+
+	fmt.Println(post)
+
+	owner, err := u.GetUserByID(post.AuthorID)
+	if err != nil {
+		return post, err
+	}
+	post.Author = owner.Nickname
+	fmt.Println(owner)
+
+	forum, err := u.repository.GetForumByID(post.ForumID)
+	if err != nil {
+		return post, err
+	}
+
+	post.Forum = forum.Slug
+
+	fmt.Println(post)
 	return post, nil
 }
 
@@ -210,32 +250,12 @@ func (u *useCase) ChangePost(post *models.Post) (models.Post, *models.Error) {
 	}
 
 	err = u.repository.ChangePost(post)
+	if err != nil {
+		return tempPost, err
+	}
 	tempPost.IsEdited = true
 	tempPost.Message = post.Message
 
 	fmt.Println(tempPost)
 	return tempPost, err
-}
-
-func (u *useCase) GetPostByID(id int64) (models.Post, *models.Error) {
-	post, err := u.repository.GetPost(id)
-	if err != nil {
-		return post, err
-	}
-
-	fmt.Println(post)
-
-	owner, err := u.GetUserByID(post.AuthorID)
-	if err != nil {
-		return post, err
-	}
-	post.Author = owner.Nickname
-
-	forum, err := u.repository.GetForumByID(post.ForumID)
-	if err != nil {
-		return post, err
-	}
-
-	post.Forum = forum.Slug
-	return post, nil
 }
