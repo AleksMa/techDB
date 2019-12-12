@@ -26,12 +26,13 @@ type UseCase interface {
 	PutPost(post *models.Post) (*models.Post, *models.Error)
 	PutPostWithSlug(post *models.Post, threadSlug string) (*models.Post, *models.Error)
 
+	PutVote(vote *models.Vote) (models.Thread, *models.Error)
+	PutVoteWithSlug(vote *models.Vote, slug string) (models.Thread, *models.Error)
+
 	UpdateThreadWithID(thread *models.Thread) (models.Thread, error)
 	UpdateThreadWithSlug(thread *models.Thread) (models.Thread, error)
 	GetPostsByThreadID(id int64) (models.Posts, error)
 	GetPostsByThreadSlug(slug string) (models.Posts, error)
-	PutVote(vote *models.Vote) (models.Vote, error)
-	PutVoteWithSlug(vote *models.Vote, slug string) (models.Vote, error)
 	ChangePost(post *models.Post) error
 	GetPostFull(id int64) (models.PostFull, error)
 

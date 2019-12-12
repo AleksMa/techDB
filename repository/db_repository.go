@@ -24,10 +24,12 @@ type Repo interface {
 	PutPost(post *models.Post) (uint64, *models.Error)
 	GetPost(ID int64) (models.Post, *models.Error)
 
+	UpdateVote(vote *models.Vote) (int, *models.Error)
+	PutVote(vote *models.Vote) (uint64, *models.Error)
+
 	UpdateThreadWithID(thread *models.Thread) error
 	UpdateThreadWithSlug(thread *models.Thread) error
 	GetPostsByThreadID(threadID int64) (models.Posts, error)
-	PutVote(vote *models.Vote) (uint64, error)
 	GetUsersByForum(forumID int64) (models.Users, error)
 	ChangePost(post *models.Post) error
 

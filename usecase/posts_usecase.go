@@ -68,6 +68,78 @@ func (u *useCase) PutPostWithSlug(post *models.Post, threadSlug string) (*models
 	return post, nil
 }
 
+func (u *useCase) PutVote(vote *models.Vote) (models.Thread, *models.Error) {
+	var thread models.Thread
+	var voice int
+	if vote.Voice != -1 && vote.Voice != 1 {
+		return thread, models.NewError(http.StatusInternalServerError, "Unexpected voice")
+	}
+	fmt.Println(vote)
+	user, err := u.GetUserByNickname(vote.Nickname)
+	if err != nil {
+		return thread, models.NewError(http.StatusInternalServerError, "No such user")
+	}
+	vote.AuthorID = user.ID
+
+	thread, err = u.GetThreadByID(vote.ThreadID)
+	if err != nil {
+		return thread, models.NewError(http.StatusNotFound, "No such thread")
+	}
+
+	voice, err = u.repository.UpdateVote(vote)
+	if err == nil {
+		thread.Votes += int32(voice)
+		return thread, nil
+	}
+
+	_, err = u.repository.PutVote(vote)
+	if err != nil {
+		return thread, err
+	}
+
+	thread.Votes += int32(vote.Voice)
+	fmt.Println(vote)
+
+	return thread, nil
+}
+
+func (u *useCase) PutVoteWithSlug(vote *models.Vote, slug string) (models.Thread, *models.Error) {
+	var thread models.Thread
+	var voice int
+
+	if vote.Voice != -1 && vote.Voice != 1 {
+		return thread, models.NewError(http.StatusInternalServerError, "Unexpected voice")
+	}
+	fmt.Println(vote)
+	user, err := u.GetUserByNickname(vote.Nickname)
+	if err != nil {
+		return thread, models.NewError(http.StatusInternalServerError, "No such user")
+	}
+	vote.AuthorID = user.ID
+
+	thread, err = u.GetThreadBySlug(slug)
+	if err != nil {
+		return thread, models.NewError(http.StatusNotFound, "No such thread")
+	}
+	vote.ThreadID = thread.ID
+
+	voice, err = u.repository.UpdateVote(vote)
+	if err == nil {
+		thread.Votes += int32(voice)
+		return thread, nil
+	}
+
+	_, err = u.repository.PutVote(vote)
+	if err != nil {
+		return thread, err
+	}
+
+	thread.Votes += int32(vote.Voice)
+	fmt.Println(vote)
+
+	return thread, nil
+}
+
 func (u *useCase) GetPostsByThreadID(id int64) (models.Posts, error) {
 	thread, _ := u.repository.GetThreadByID(id)
 
@@ -92,19 +164,6 @@ func (u *useCase) GetPostsByThreadSlug(slug string) (models.Posts, error) {
 	return posts, nil
 }
 
-func (u *useCase) PutVote(vote *models.Vote) (models.Vote, error) {
-	fmt.Println(vote)
-	//TODO: contains check
-	user, _ := u.repository.GetUserByNickname(vote.Nickname)
-	vote.AuthorID = user.ID
-
-	fmt.Println(vote)
-
-	u.repository.PutVote(vote)
-	//TODO: error check
-	return *vote, nil
-}
-
 func (u *useCase) ChangePost(post *models.Post) error {
 	fmt.Println(post)
 	//TODO: contains check
@@ -125,18 +184,4 @@ func (u *useCase) GetPostFull(id int64) (models.PostFull, error) {
 	postFull.Forum, _ = u.GetForumByID(postFull.Post.ForumID)
 
 	return postFull, nil
-}
-
-func (u *useCase) PutVoteWithSlug(vote *models.Vote, slug string) (models.Vote, error) {
-	fmt.Println(vote)
-	//TODO: contains check
-	user, _ := u.repository.GetUserByNickname(vote.Nickname)
-	vote.AuthorID = user.ID
-	thread, _ := u.repository.GetThreadBySlug(slug)
-	vote.ThreadID = thread.ID
-	fmt.Println(vote)
-
-	u.repository.PutVote(vote)
-	//TODO: error check
-	return *vote, nil
 }

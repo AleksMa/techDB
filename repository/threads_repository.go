@@ -39,7 +39,7 @@ func (store *DBStore) GetThreadsByForum(forumID int64, params models.ThreadParam
 	args := 1
 	curParams := []interface{}{forumID}
 
-	selectStr := "SELECT ID, created, message, slug, title, authorid FROM threads WHERE forumID = $1"
+	selectStr := "SELECT ID, created, message, slug, title, authorid, vote FROM threads WHERE forumID = $1"
 
 	if !params.Since.IsZero() {
 		selectStr += " AND created"
@@ -73,8 +73,7 @@ func (store *DBStore) GetThreadsByForum(forumID int64, params models.ThreadParam
 
 	for rows.Next() {
 		thread := &models.Thread{}
-		err := rows.Scan(&thread.ID, &thread.Created, &thread.Message, &thread.Slug, &thread.Title, &thread.AuthorID)
-		//thread.Created = thread.Created.Add(time.Duration(-3) * time.Hour)
+		err := rows.Scan(&thread.ID, &thread.Created, &thread.Message, &thread.Slug, &thread.Title, &thread.AuthorID, &thread.Votes)
 		if err != nil {
 			return threads, models.NewError(http.StatusInternalServerError, err.Error())
 		}
@@ -93,10 +92,10 @@ func (store *DBStore) GetThreadsByForum(forumID int64, params models.ThreadParam
 func (store *DBStore) GetThreadBySlug(slug string) (models.Thread, *models.Error) {
 	thread := &models.Thread{}
 
-	selectStr := "SELECT ID, created, forumid, message, slug, title, authorid FROM threads WHERE slug = $1"
+	selectStr := "SELECT ID, created, forumid, message, slug, title, authorid, vote FROM threads WHERE slug = $1"
 	row := store.DB.QueryRow(selectStr, slug)
 
-	err := row.Scan(&thread.ID, &thread.Created, &thread.ForumID, &thread.Message, &thread.Slug, &thread.Title, &thread.AuthorID)
+	err := row.Scan(&thread.ID, &thread.Created, &thread.ForumID, &thread.Message, &thread.Slug, &thread.Title, &thread.AuthorID, &thread.Votes)
 
 	if err != nil {
 		fmt.Println(err)
@@ -112,10 +111,10 @@ func (store *DBStore) GetThreadBySlug(slug string) (models.Thread, *models.Error
 func (store *DBStore) GetThreadByID(id int64) (models.Thread, *models.Error) {
 	thread := &models.Thread{}
 
-	selectStr := "SELECT ID, created, forumid, message, slug, title, authorid FROM threads WHERE id = $1"
+	selectStr := "SELECT ID, created, forumid, message, slug, title, authorid, vote FROM threads WHERE id = $1"
 	row := store.DB.QueryRow(selectStr, id)
 
-	err := row.Scan(&thread.ID, &thread.Created, &thread.ForumID, &thread.Message, &thread.Slug, &thread.Title, &thread.AuthorID)
+	err := row.Scan(&thread.ID, &thread.Created, &thread.ForumID, &thread.Message, &thread.Slug, &thread.Title, &thread.AuthorID, &thread.Votes)
 
 	if err != nil {
 		fmt.Println(err)

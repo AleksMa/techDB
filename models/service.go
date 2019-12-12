@@ -25,7 +25,7 @@ DROP TABLE IF EXISTS forums CASCADE;
 CREATE TABLE forums
 (
     ID       BIGSERIAL NOT NULL PRIMARY KEY,
-    slug     CITEXT      NOT NULL UNIQUE,
+    slug     CITEXT    NOT NULL UNIQUE,
     title    TEXT      NOT NULL,
     authorID BIGINT    NOT NULL,
     FOREIGN KEY (authorID) REFERENCES users (ID) ON DELETE CASCADE
@@ -42,6 +42,7 @@ CREATE TABLE threads
 
     slug     CITEXT UNIQUE DEFAULT NULL,
     title    TEXT,
+    vote     INTEGER       DEFAULT 0,
 
     authorID BIGINT    NOT NULL,
     FOREIGN KEY (authorID) REFERENCES users (ID) ON DELETE CASCADE,
@@ -57,7 +58,7 @@ CREATE TABLE posts
     forumID  BIGINT    NOT NULL,
     isEdited BOOLEAN,
     message  TEXT,
-    parentID BIGINT    DEFAULT 0,
+    parentID BIGINT DEFAULT 0,
 
     authorID BIGINT    NOT NULL,
     threadID BIGINT    NOT NULL,
@@ -77,4 +78,7 @@ CREATE TABLE votes
     authorID BIGINT    NOT NULL,
     FOREIGN KEY (authorID) REFERENCES users (ID) ON DELETE CASCADE,
     FOREIGN KEY (threadID) REFERENCES threads (ID) ON DELETE CASCADE
-);`
+);
+
+-- CREATE TRIGGER vote_insert AFTER INSERT ON votes
+`

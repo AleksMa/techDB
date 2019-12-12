@@ -121,10 +121,21 @@ func (handlers *Handlers) Vote(w http.ResponseWriter, r *http.Request) {
 
 	}
 
+	var thread models.Thread
+	var e *models.Error
+
 	if id, err := strconv.Atoi(slug_or_id); err == nil {
 		vote.ThreadID = int64(id)
-		handlers.usecases.PutVote(&vote)
+		thread, e = handlers.usecases.PutVote(&vote)
 	} else {
-		handlers.usecases.PutVoteWithSlug(&vote, slug_or_id)
+		thread, e = handlers.usecases.PutVoteWithSlug(&vote, slug_or_id)
 	}
+	if e != nil {
+		body, _ = json.Marshal(e)
+		WriteResponse(w, body, http.StatusNotFound)
+		return
+	}
+
+	body, _ = json.Marshal(thread)
+	WriteResponse(w, body, http.StatusOK)
 }

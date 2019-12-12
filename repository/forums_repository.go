@@ -24,10 +24,13 @@ func (store *DBStore) PutForum(forum *models.Forum) (uint64, *models.Error) {
 }
 
 func (store *DBStore) GetForumBySlug(slug string) (models.Forum, *models.Error) {
+	tx, _ := store.DB.Begin()
+	defer tx.Rollback()
+
 	forum := &models.Forum{}
 
 	selectStr := "SELECT ID, slug, title, authorid FROM forums WHERE slug = $1"
-	row := store.DB.QueryRow(selectStr, slug)
+	row := tx.QueryRow(selectStr, slug)
 
 	err := row.Scan(&forum.ID, &forum.Slug, &forum.Title, &forum.OwnerID)
 
@@ -38,6 +41,16 @@ func (store *DBStore) GetForumBySlug(slug string) (models.Forum, *models.Error) 
 		}
 		return *forum, models.NewError(http.StatusInternalServerError, err.Error())
 	}
+
+	selectStr = "SELECT COUNT(*) FROM threads WHERE forumid = $1"
+	row = tx.QueryRow(selectStr, forum.ID)
+	row.Scan(&forum.Threads)
+
+	selectStr = "SELECT COUNT(*) FROM posts WHERE forumid = $1"
+	row = tx.QueryRow(selectStr, forum.ID)
+	row.Scan(&forum.Posts)
+
+	tx.Commit()
 
 	return *forum, nil
 }
