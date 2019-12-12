@@ -32,8 +32,8 @@ type UseCase interface {
 	PutVote(vote *models.Vote) (models.Thread, *models.Error)
 	PutVoteWithSlug(vote *models.Vote, slug string) (models.Thread, *models.Error)
 
-	GetPostsByThreadID(id int64) (models.Posts, error)
-	GetPostsByThreadSlug(slug string) (models.Posts, error)
+	GetPostsByThreadID(id int64, params models.PostParams) (models.Posts, *models.Error)
+	GetPostsByThreadSlug(slug string, params models.PostParams) (models.Posts, *models.Error)
 
 	GetStatus() (models.Status, error)
 	RemoveAllData() error

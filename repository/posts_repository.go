@@ -5,14 +5,14 @@ import (
 	"github.com/AleksMa/techDB/models"
 	"github.com/jackc/pgx"
 	"net/http"
+	"strconv"
 )
 
 func (store *DBStore) PutPost(post *models.Post) (uint64, *models.Error) {
-	fmt.Println("BLYA LIVE")
 	var ID uint64
 
-	insertQuery := `INSERT INTO posts (created, forumid, isedited, message, parentid, authorid, threadid) 
-		VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`
+	insertQuery := `INSERT INTO posts (created, forumid, isedited, message, parentid, authorid, threadid, parents) 
+		VALUES ($1, $2, $3, $4, $5, $6, $7, (SELECT parents FROM posts WHERE posts.id = $5)) RETURNING id`
 	rows := store.DB.QueryRow(insertQuery,
 		post.Created, post.ForumID, post.IsEdited, post.Message, post.Parent, post.AuthorID, post.Thread)
 
@@ -42,35 +42,6 @@ func (store *DBStore) GetPost(id int64) (models.Post, *models.Error) {
 	}
 
 	return *post, nil
-}
-
-func (store *DBStore) GetPostsByThreadID(threadID int64) (models.Posts, error) {
-	posts := models.Posts{}
-
-	selectStr := `SELECT ID, created, forumid, isEdited, message, parentid, authorid, threadid 
-			FROM posts WHERE threadID = $1`
-	rows, err := store.DB.Query(selectStr, threadID)
-	if err != nil {
-		return posts, models.NewServerError(err, http.StatusInternalServerError, "Can not get all users: "+err.Error())
-	}
-
-	for rows.Next() {
-		post := &models.Post{}
-		err := rows.Scan(&post.ID, &post.Created, &post.ForumID, &post.IsEdited,
-			&post.Message, &post.Parent, &post.AuthorID, &post.Thread)
-		if err != nil {
-			return posts, models.NewServerError(err, http.StatusInternalServerError, "Can not get all users: "+err.Error())
-		}
-		posts = append(posts, post)
-	}
-
-	rows.Close()
-
-	if err != nil {
-		return posts, models.NewServerError(err, http.StatusInternalServerError, "Can not get user: "+err.Error())
-	}
-
-	return posts, nil
 }
 
 func (store *DBStore) PutVote(vote *models.Vote) (uint64, *models.Error) {
@@ -175,4 +146,117 @@ func (store *DBStore) UpdateVote(vote *models.Vote) (int, *models.Error) {
 	tx.Commit()
 
 	return tempVote, nil
+}
+
+func (store *DBStore) GetPostsByThreadID(threadID int64, params models.PostParams) (models.Posts, *models.Error) {
+	posts := models.Posts{}
+
+	var curParams []interface{}
+	selectStr := ""
+
+	//`SELECT ID, created, forumid, isEdited, message, parentid, authorid, threadid
+	//			FROM posts WHERE threadID = $1`
+
+	switch params.Sort {
+	case models.Flat:
+		curParams = append(curParams, threadID)
+		selectStr += `SELECT p.id, p.created, p.forumid, p.isEdited, 
+				p.message, p.parentid, p.authorid, p.threadid FROM posts p WHERE p.threadid = $1`
+		if params.Since != -1 {
+			curParams = append(curParams, params.Since)
+			selectStr += ` AND (p.created, p.id) `
+			if params.Desc {
+				selectStr += "<"
+			} else {
+				selectStr += ">"
+			}
+			selectStr += ` (SELECT posts.created, posts.id FROM posts WHERE posts.id=$2)`
+		}
+		selectStr += ` ORDER BY (p.created, p.id)`
+		if params.Desc {
+			selectStr += " DESC"
+		}
+		if params.Limit != -1 {
+			selectStr += " LIMIT $"
+			selectStr += strconv.Itoa(len(curParams) + 1)
+			curParams = append(curParams, params.Limit)
+		}
+	case models.Tree:
+		curParams = append(curParams, threadID)
+		selectStr += `SELECT p.id, p.created, p.forumid, p.isEdited, 
+				p.message, p.parentid, p.authorid, p.threadid FROM posts p WHERE p.threadid = $1`
+		if params.Since != -1 {
+			curParams = append(curParams, params.Since)
+			selectStr += " AND p.parents "
+			if params.Desc {
+				selectStr += "<"
+			} else {
+				selectStr += ">"
+			}
+			selectStr += ` (SELECT posts.parents FROM posts WHERE posts.id = $2)`
+		}
+		selectStr += " ORDER BY p.parents"
+		if params.Desc {
+			selectStr += " DESC"
+		}
+		if params.Limit != -1 {
+			selectStr += " LIMIT $"
+			selectStr += strconv.Itoa(len(curParams) + 1)
+			curParams = append(curParams, params.Limit)
+		}
+	case models.ParentTree:
+		curParams = append(curParams, threadID)
+		selectStr += `SELECT p.id, p.created, p.forumid, p.isEdited, 
+				p.message, p.parentid, p.authorid, p.threadid FROM posts p WHERE p.parents[1] IN (
+				SELECT posts.id FROM posts WHERE posts.threadid = $1 AND posts.parentid = 0`
+		if params.Since != -1 {
+			curParams = append(curParams, params.Since)
+			selectStr += ` AND posts.id `
+			if params.Desc {
+				selectStr += "<"
+			} else {
+				selectStr += ">"
+			}
+			selectStr += ` (SELECT COALESCE(posts.parents[1], posts.id) FROM posts WHERE posts.id = $2)`
+		}
+		selectStr += " ORDER BY posts.id"
+		if params.Desc {
+			selectStr += " DESC"
+		}
+		if params.Limit != -1 {
+			selectStr += " LIMIT $"
+			selectStr += strconv.Itoa(len(curParams) + 1)
+			curParams = append(curParams, params.Limit)
+		}
+		selectStr += `) ORDER BY`
+		if params.Desc {
+			selectStr += ` p.parents[1] DESC,`
+		}
+		selectStr += ` p.parents`
+	}
+	selectStr += ";"
+
+	fmt.Println("НЕ ЖОПА", selectStr, curParams)
+
+	rows, err := store.DB.Query(selectStr, curParams...)
+	if err != nil {
+		fmt.Println("ЖОПА", selectStr, curParams)
+		return posts, models.NewError(http.StatusInternalServerError, err.Error())
+	}
+
+	for rows.Next() {
+		post := &models.Post{}
+		err := rows.Scan(&post.ID, &post.Created, &post.ForumID, &post.IsEdited,
+			&post.Message, &post.Parent, &post.AuthorID, &post.Thread)
+		if err != nil {
+			return posts, models.NewError(http.StatusInternalServerError, err.Error())
+		}
+		posts = append(posts, post)
+	}
+
+	rows.Close()
+
+	fmt.Println("ВЫВОД", selectStr, curParams)
+
+	return posts, nil
 }

@@ -3,6 +3,7 @@ package repository
 import (
 	"github.com/AleksMa/techDB/models"
 	"github.com/jackc/pgx"
+	"net/http"
 )
 
 type Repo interface {
@@ -27,14 +28,13 @@ type Repo interface {
 	PutPost(post *models.Post) (uint64, *models.Error)
 	GetPost(ID int64) (models.Post, *models.Error)
 	ChangePost(post *models.Post) *models.Error
+	GetPostsByThreadID(threadID int64, params models.PostParams) (models.Posts, *models.Error)
 
 	UpdateVote(vote *models.Vote) (int, *models.Error)
 	PutVote(vote *models.Vote) (uint64, *models.Error)
 
-	GetPostsByThreadID(threadID int64) (models.Posts, error)
-
-	GetStatus() (models.Status, error)
-	ReloadDB() error
+	GetStatus() (models.Status, *models.Error)
+	ReloadDB() *models.Error
 }
 
 type DBStore struct {
@@ -47,7 +47,7 @@ func NewDBStore(db *pgx.ConnPool) Repo {
 	}
 }
 
-func (store *DBStore) GetStatus() (models.Status, error) {
+func (store *DBStore) GetStatus() (models.Status, *models.Error) {
 	tx, _ := store.DB.Begin()
 	defer tx.Rollback()
 
@@ -70,7 +70,10 @@ func (store *DBStore) GetStatus() (models.Status, error) {
 	return *status, nil
 }
 
-func (store *DBStore) ReloadDB() error {
+func (store *DBStore) ReloadDB() *models.Error {
 	_, err := store.DB.Exec(models.InitScript)
-	return err
+	if err != nil {
+		return models.NewError(http.StatusInternalServerError, err.Error())
+	}
+	return nil
 }

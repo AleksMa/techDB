@@ -22,4 +22,17 @@ type PostFull struct {
 	Thread *Thread `json:"thread"`
 }
 
+type PostParams struct {
+	Limit int
+	Since int
+	Desc  bool
+	Sort  int
+}
+
 type Posts []*Post
+
+const (
+	Flat = iota
+	Tree
+	ParentTree
+)

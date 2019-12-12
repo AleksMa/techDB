@@ -59,6 +59,7 @@ CREATE TABLE posts
     isEdited BOOLEAN,
     message  TEXT,
     parentID BIGINT DEFAULT 0,
+    parents BIGINT[] NOT NULL,
 
     authorID BIGINT    NOT NULL,
     threadID BIGINT    NOT NULL,
@@ -78,7 +79,4 @@ CREATE TABLE votes
     authorID BIGINT    NOT NULL,
     FOREIGN KEY (authorID) REFERENCES users (ID) ON DELETE CASCADE,
     FOREIGN KEY (threadID) REFERENCES threads (ID) ON DELETE CASCADE
-);
-
--- CREATE TRIGGER vote_insert AFTER INSERT ON votes
-`
+);`

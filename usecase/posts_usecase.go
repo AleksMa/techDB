@@ -215,28 +215,35 @@ func (u *useCase) GetPostFull(id int64, fields []string) (models.PostFull, *mode
 	return postFull, nil
 }
 
-func (u *useCase) GetPostsByThreadID(id int64) (models.Posts, error) {
-	thread, _ := u.repository.GetThreadByID(id)
+func (u *useCase) GetPostsByThreadID(id int64, params models.PostParams) (models.Posts, *models.Error) {
+	thread, err := u.GetThreadByID(id)
+	if err != nil {
+		return nil, err
+	}
 
-	posts, _ := u.repository.GetPostsByThreadID(thread.ID)
+	posts, err := u.repository.GetPostsByThreadID(thread.ID, params)
+	if err != nil {
+		return nil, err
+	}
+
 	for i, _ := range posts {
 		posts[i].Thread = thread.ID
-		user, _ := u.repository.GetUserByID(posts[i].AuthorID)
+		user, err := u.GetUserByID(posts[i].AuthorID)
+		if err != nil {
+			return nil, err
+		}
 		posts[i].Author = user.Nickname
+		posts[i].Forum = thread.Forum
 	}
 	return posts, nil
 }
 
-func (u *useCase) GetPostsByThreadSlug(slug string) (models.Posts, error) {
-	thread, _ := u.repository.GetThreadBySlug(slug)
-
-	posts, _ := u.repository.GetPostsByThreadID(thread.ID)
-	for i, _ := range posts {
-		posts[i].Thread = thread.ID
-		user, _ := u.repository.GetUserByID(posts[i].AuthorID)
-		posts[i].Author = user.Nickname
+func (u *useCase) GetPostsByThreadSlug(slug string, params models.PostParams) (models.Posts, *models.Error) {
+	thread, err := u.repository.GetThreadBySlug(slug)
+	if err != nil {
+		return nil, err
 	}
-	return posts, nil
+	return u.GetPostsByThreadID(thread.ID, params)
 }
 
 func (u *useCase) ChangePost(post *models.Post) (models.Post, *models.Error) {

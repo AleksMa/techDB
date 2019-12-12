@@ -128,21 +128,50 @@ func (handlers *Handlers) GetPostFull(w http.ResponseWriter, r *http.Request) {
 
 func (handlers *Handlers) GetPosts(w http.ResponseWriter, r *http.Request) {
 	var posts models.Posts
+	var e *models.Error
+
 	vars := mux.Vars(r)
 	slug_or_id := vars["slug_or_id"]
 
+	query := r.URL.Query()
+	var params models.PostParams
+	var err error
+
+	params.Limit, err = strconv.Atoi(query.Get("limit"))
+	if err != nil {
+		params.Limit = -1
+	}
+	params.Since, err = strconv.Atoi(query.Get("since"))
+	if err != nil {
+		params.Since = -1
+	}
+	fmt.Println("SINCE: ", params.Since)
+	params.Desc = query.Get("desc") == "true"
+
+	switch query.Get("sort") {
+	case "flat":
+		params.Sort = models.Flat
+	case "tree":
+		params.Sort = models.Tree
+	case "parent_tree":
+		params.Sort = models.ParentTree
+	}
+
 	if id, err := strconv.Atoi(slug_or_id); err == nil {
-		posts, _ = handlers.usecases.GetPostsByThreadID(int64(id))
+		posts, e = handlers.usecases.GetPostsByThreadID(int64(id), params)
 	} else {
-		posts, _ = handlers.usecases.GetPostsByThreadSlug(slug_or_id)
+		posts, e = handlers.usecases.GetPostsByThreadSlug(slug_or_id, params)
+	}
+	if e != nil {
+		body, _ := json.Marshal(e)
+		WriteResponse(w, body, e.Code)
+		return
 	}
 
 	fmt.Println(posts)
 
 	body, _ := json.Marshal(posts)
-
-	w.Header().Set("Content-Type", "application/json")
-	w.Write(body)
+	WriteResponse(w, body, http.StatusOK)
 }
 
 func (handlers *Handlers) Vote(w http.ResponseWriter, r *http.Request) {
